@@ -11,21 +11,27 @@ class NBody:
         self.P = np.array(P).astype(float) if P else np.random.random((N,D))
         self.V = np.array(V).astype(float) if V else np.zeros((N,D))
 
-    def step(self, dt):
+    def compute_forces(self):
         N = len(self.M)
 
         dP = self.P[:, np.newaxis] - self.P[np.newaxis,:]
+        
         r3 = np.abs(np.power(dP,3))
         r3[np.eye(N,dtype=np.uint8)] = 1
         
         m1m2 = np.outer(self.M, self.M)[:,:,np.newaxis]
         
         F = -self.G * m1m2 * dP / r3
-        Fm = F.sum(axis=0)
-        
-        dV = Fm * dt / self.M[:,np.newaxis]
+        return F.sum(axis=0)
+
+    def advect(self, F, dt):
+        dV = F * dt / self.M[:,np.newaxis]
         self.V += dV
         self.P += self.V * dt + 0.5 * dV * dt * dt
+        
+    def step(self, dt):
+        F = self.compute_forces()
+        self.advect(F, dt)
 
 nb = NBody(2, P=[[1,0,0],[-1,0,0,]], M=[1,1])
 nb.step(.1)
