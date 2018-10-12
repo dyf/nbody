@@ -1,6 +1,4 @@
-
 import numpy as np
-import scipy.spatial.distance as ssdist
 
 class NBody:
     def __init__(self, N, G=-1.0, D=3, M=None, P=None, V=None):
@@ -33,11 +31,14 @@ class NBody:
         F = self.compute_forces()
         self.advect(F, dt)
 
-nb = NBody(2, P=[[1,0,0],[-1,0,0,]], M=[1,1])
-nb.step(.1)
-print(nb.P)
-nb.step(.1)
-print(nb.P)
+def main():
+    nb = NBody(2, P=[[1,0,0],[-1,0,0,]], M=[1,1])
+    nb.step(.1)
+    print(nb.P)
+    nb.step(.1)
+    print(nb.P)
+
+if __name__ == "__main__": main()
 
 
     
