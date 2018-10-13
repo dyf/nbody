@@ -11,6 +11,8 @@ class NBody:
 
         if integrator == 'euler':
             self.step = self.step_euler
+        elif integrator == 'rk2':
+            self.step = self.step_rk2
         elif integrator == 'rk4':
             self.step = self.step_rk4
 
@@ -19,13 +21,17 @@ class NBody:
         self.V += dV
         self.P += dP
 
-    def step_rk4(self, dt):
+    def step_rk2(self, dt):
         dV1, dP1 = compute_derivatives(dt, self.G, self.M, self.V, self.P)
-
         dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
 
+        self.V += dV2
+        self.P += dP2
+        
+    def step_rk4(self, dt):
+        dV1, dP1 = compute_derivatives(dt, self.G, self.M, self.V, self.P)
+        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
         dV3, dP3 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
-
         dV4, dP4 = compute_derivatives(dt, self.G, self.M, self.V + dV3*dt, self.P + dP3*dt)
 
         self.V += (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0
