@@ -15,23 +15,22 @@ class NBody:
             self.step = self.step_rk4
 
     def step_euler(self, dt):
-        dV, dP = compute_forces_and_derivatives(self.G, self.M, self.V, self.P, dt)
+        dV, dP = compute_derivatives(dt, self.G, self.M, self.V, self.P)
         self.V += dV
         self.P += dP
-        
+
     def step_rk4(self, dt):
-        dV1, dP1 = compute_forces_and_derivatives(self.G, self.M, self.V, self.P, dt)
-        dV2, dP2 = compute_forces_and_derivatives(self.G, self.M, self.V+dV1*0.5, self.P+dP1*0.5, dt*0.5)
-        dV3, dP3 = compute_forces_and_derivatives(self.G, self.M, self.V+dV2*0.5, self.P+dP2*0.5, dt*0.5)
-        dV4, dP4 = compute_forces_and_derivatives(self.G, self.M, self.V+dV3, self.P+dP3, dt)        
+        dV1, dP1 = compute_derivatives(dt, self.G, self.M, self.V, self.P)
+
+        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
+
+        dV3, dP3 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
+
+        dV4, dP4 = compute_derivatives(dt, self.G, self.M, self.V + dV3*dt, self.P + dP3*dt)
 
         self.V += (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0
         self.P += (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0
 
-def compute_derivatives(F, dt, M, V, P):
-    dV = dt * F / M[:,np.newaxis]
-    dP = (V + dV) * dt + 0.5 * dV * dt * dt
-    return dV, dP
         
 def compute_forces(G, M, P):
     N = len(M)
@@ -46,9 +45,13 @@ def compute_forces(G, M, P):
     F = -G * m1m2 * dP / r3
     return F.sum(axis=0)
 
-def compute_forces_and_derivatives(G, M, V, P, dt):
+def compute_derivatives(dt, G, M, V, P):
     F = compute_forces(G, M, P)
-    return compute_derivatives(F, dt, M, V, P)
+    
+    dV = dt * F / M[:,np.newaxis]
+    dP = (V+dV) * dt + 0.5 * dV * dt * dt
+
+    return dV, dP
 
 def main():
     nb = NBody(2, P=[[1,0,0],[-1,0,0,]], M=[1,1], integrator='rk4')
