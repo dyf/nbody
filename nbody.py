@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.spatial.distance as ssdist
 
 class NBody:
     def __init__(self, N, G=1.0, K=0.1, D=3, M=None, P=None, V=None, integrator='euler'):
@@ -30,10 +31,10 @@ class NBody:
         self.P += dP2
         
     def step_rk4(self, dt):
-        dV1, dP1 = compute_derivatives(dt, self.G, self.M, self.V, self.P)
-        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
-        dV3, dP3 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
-        dV4, dP4 = compute_derivatives(dt, self.G, self.M, self.V + dV3*dt, self.P + dP3*dt)
+        dV1, dP1 = compute_derivatives(dt, self.G, self.K, self.M, self.V, self.P)
+        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.K, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
+        dV3, dP3 = compute_derivatives(dt*0.5, self.G, self.K, self.M, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
+        dV4, dP4 = compute_derivatives(dt, self.G, self.K, self.M, self.V + dV3*dt, self.P + dP3*dt)
 
         self.V += (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0
         self.P += (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0
@@ -43,12 +44,12 @@ def compute_forces(G, K, M, V, P):
     N = len(M)
 
     dP = P[:, np.newaxis] - P[np.newaxis,:]
-    r3 = np.abs(np.power(dP,3))
-    r3[dP==0] = 1 
+    r = ssdist.squareform(ssdist.pdist(P))
+    r3 = np.power(r,2)
+    r3[r==0] = 1 
 
     m1m2 = np.outer(M, M)[:,:,np.newaxis]
-    
-    Fg = G * m1m2 * dP / r3
+    Fg = G * m1m2 * (dP / r3[:,:,np.newaxis])
     Fd = - K * V
 
     return (Fg+Fd).sum(axis=0)
@@ -83,8 +84,14 @@ def save(nb, file_name):
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
-    nb = NBody(2, integrator='euler', D=2, P = [[1,.5],[0,.5]], V = [[0,1],[0,-1]], K=0.0)
-    for i in range(1000):
+    nb = NBody(2, integrator='rk4',
+               D=2,
+               K=0.1,
+               #P = [1,-1]
+               P = [[1,.5],[0,.5]],
+               V = [[0,.1],[0,-.1]]
+    )
+    for i in range(50):
         save(nb, 'test%02d.jpg' % i)
         print("P")
         print(nb.P)
