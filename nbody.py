@@ -5,7 +5,7 @@ class NBody:
         self.D = 3
         self.G = G
 
-        self.M = np.array(M).astype(float) if M else np.random.random(N)
+        self.M = np.array(M).astype(float) if M else np.ones(N)
         self.P = np.array(P).astype(float) if P else np.random.random((N,D))
         self.V = np.array(V).astype(float) if V else np.zeros((N,D))
 
@@ -43,8 +43,9 @@ def compute_forces(G, M, P):
 
     dP = P[:, np.newaxis] - P[np.newaxis,:]
     
+    I = np.eye(N,dtype=bool)
     r3 = np.abs(np.power(dP,3))
-    r3[np.eye(N,dtype=np.uint8)] = 1
+    r3[I] = 1 
         
     m1m2 = np.outer(M, M)[:,:,np.newaxis]
     
@@ -59,12 +60,35 @@ def compute_derivatives(dt, G, M, V, P):
 
     return dV, dP
 
+def save(nb, file_name):
+    import matplotlib
+    matplotlib.use('agg')
+    #from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)#, projection='3d')
+    plt.scatter(x=nb.P[:,0],
+                y=nb.P[:,1],
+                marker='o',
+                s=10)
+
+    ax.set_xlim([0,1])
+    ax.set_ylim([0,1])
+    #ax.set_zlim([0,1])
+    
+    plt.savefig(file_name)
+    plt.close()
+    
 def main():
-    nb = NBody(2, P=[[1,0,0],[-1,0,0,]], M=[1,1], integrator='rk4')
-    nb.step(.1)
-    print(nb.P)
-    nb.step(.1)
-    print(nb.P)
+    np.set_printoptions(precision=8)
+    nb = NBody(8, integrator='rk4', D=2)
+
+    save(nb, 'test1.jpg')
+    nb.step(.001)
+    save(nb, 'test2.jpg')
+    nb.step(.001)
+    save(nb, 'test3.jpg')
 
 if __name__ == "__main__": main()
 
