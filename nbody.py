@@ -1,9 +1,10 @@
 import numpy as np
 
 class NBody:
-    def __init__(self, N, G=-1.0, D=3, M=None, P=None, V=None, integrator='euler'):
-        self.D = 3
+    def __init__(self, N, G=1.0, K=0.1, D=3, M=None, P=None, V=None, integrator='euler'):
+        self.D = D
         self.G = G
+        self.K = K
 
         self.M = np.array(M).astype(float) if M else np.ones(N)
         self.P = np.array(P).astype(float) if P else np.random.random((N,D))
@@ -17,13 +18,13 @@ class NBody:
             self.step = self.step_rk4
 
     def step_euler(self, dt):
-        dV, dP = compute_derivatives(dt, self.G, self.M, self.V, self.P)
+        dV, dP = compute_derivatives(dt, self.G, self.K, self.M, self.V, self.P)
         self.V += dV
         self.P += dP
 
     def step_rk2(self, dt):
-        dV1, dP1 = compute_derivatives(dt, self.G, self.M, self.V, self.P)
-        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
+        dV1, dP1 = compute_derivatives(dt, self.G, self.K, self.M, self.V, self.P)
+        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.K, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
 
         self.V += dV2
         self.P += dP2
@@ -38,22 +39,22 @@ class NBody:
         self.P += (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0
 
         
-def compute_forces(G, M, P):
+def compute_forces(G, K, M, V, P):
     N = len(M)
 
     dP = P[:, np.newaxis] - P[np.newaxis,:]
-    
-    I = np.eye(N,dtype=bool)
     r3 = np.abs(np.power(dP,3))
-    r3[I] = 1 
-        
+    r3[dP==0] = 1 
+
     m1m2 = np.outer(M, M)[:,:,np.newaxis]
     
-    F = -G * m1m2 * dP / r3
-    return F.sum(axis=0)
+    Fg = G * m1m2 * dP / r3
+    Fd = - K * V
 
-def compute_derivatives(dt, G, M, V, P):
-    F = compute_forces(G, M, P)
+    return (Fg+Fd).sum(axis=0)
+
+def compute_derivatives(dt, G, K, M, V, P):
+    F = compute_forces(G, K, M, V, P)
     
     dV = dt * F / M[:,np.newaxis]
     dP = (V+dV) * dt + 0.5 * dV * dt * dt
@@ -81,14 +82,13 @@ def save(nb, file_name):
     plt.close()
     
 def main():
-    np.set_printoptions(precision=8)
-    nb = NBody(8, integrator='rk4', D=2)
-
-    save(nb, 'test1.jpg')
-    nb.step(.001)
-    save(nb, 'test2.jpg')
-    nb.step(.001)
-    save(nb, 'test3.jpg')
+    np.set_printoptions(precision=5, suppress=True)
+    nb = NBody(2, integrator='euler', D=2, P = [[1,.5],[0,.5]], V = [[0,1],[0,-1]], K=0.0)
+    for i in range(1000):
+        save(nb, 'test%02d.jpg' % i)
+        print("P")
+        print(nb.P)
+        nb.step(.1)
 
 if __name__ == "__main__": main()
 
