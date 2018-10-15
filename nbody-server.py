@@ -5,7 +5,7 @@ app = Flask(__name__)
 nb = NBody(
     4,
     integrator='rk4',
-    D=2,
+    D=3,
     K=0.1,
     M=[1,1,1,.01]
 )
