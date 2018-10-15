@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, url_for
+from flask import Flask, jsonify, render_template, url_for, request
 from nbody import NBody
 
 app = Flask(__name__)
@@ -16,6 +16,12 @@ def index():
 
 @app.route('/bodies')
 def positions():
+    return jsonify(nb.P.tolist())
+
+@app.route('/step')
+def step():
+    dt = float(request.args.get('dt'))
+    nb.step(dt)
     return jsonify(nb.P.tolist())
 
 app.run(threaded=True)

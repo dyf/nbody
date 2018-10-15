@@ -1,10 +1,26 @@
 $(function() {
     init();
     animate();
-})
+});
 
 var camera, scene, renderer, container, controls;
-var spheres = [];
+var spheres = null;
+
+function update_bodies(callback) {
+    $.getJSON("/step?dt=0.1", function(data) {
+	for (var i = 0; i < data.length; i++) {
+	    var p = data[i];
+	    if (i==0)
+		console.log(p);
+	    var object = spheres[i];
+	    
+		object.position.x = (p[0] - 0.5)*100;
+	    object.position.y = (p[1] - 0.5)*100;
+	    object.position.z = (p[2] - 0.5)*100;
+	}
+	callback();
+    });
+}
 
 function init() {
     container = document.createElement( 'div' );
@@ -26,6 +42,7 @@ function init() {
 
     var geometry = new THREE.SphereBufferGeometry( 5, 32, 32 );
 
+    spheres = [];
     $.getJSON("/bodies", function(data) {
 	for (var i = 0; i < data.length; i++) {
 	    var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
@@ -48,7 +65,9 @@ function init() {
 }
 
 function animate() {
-    requestAnimationFrame( animate );
-    controls.update();
-    renderer.render( scene, camera );
+    update_bodies(function() {	
+	requestAnimationFrame( animate );
+	controls.update();
+	renderer.render( scene, camera );
+    });
 }
