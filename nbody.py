@@ -2,14 +2,14 @@ import numpy as np
 import scipy.spatial.distance as ssdist
 
 class NBody:
-    def __init__(self, N, G=1.0, K=0.1, D=3, M=None, P=None, V=None, integrator='euler'):
+    def __init__(self, N, G=1.0, K=0.1, D=3, M=None, P=None, V=None, integrator='euler', dtype=np.float32):
         self.D = D
         self.G = G
         self.K = K
 
-        self.M = np.array(M).astype(float) if M else np.ones(N)
-        self.P = np.array(P).astype(float) if P else np.random.random((N,D))
-        self.V = np.array(V).astype(float) if V else np.zeros((N,D))
+        self.M = np.array(M).astype(dtype) if M else np.ones(N, dtype=dtype)
+        self.P = np.array(P).astype(dtype) if P else np.random.random((N,D)).astype(dtype)
+        self.V = np.array(V).astype(dypte) if V else np.zeros((N,D), dtype=dtype)
 
         if integrator == 'euler':
             self.step = self.step_euler

@@ -22,6 +22,6 @@ def positions():
 def step():
     dt = float(request.args.get('dt'))
     nb.step(dt)
-    return jsonify(nb.P.tolist())
+    return nb.P.tobytes()
 
-app.run(threaded=True)
+app.run()#threaded=True)

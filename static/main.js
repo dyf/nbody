@@ -7,19 +7,29 @@ var camera, scene, renderer, container, controls;
 var spheres = null;
 
 function update_bodies(callback) {
-    $.getJSON("/step?dt=0.1", function(data) {
-	for (var i = 0; i < data.length; i++) {
-	    var p = data[i];
-	    if (i==0)
-		console.log(p);
-	    var object = spheres[i];
-	    
-		object.position.x = (p[0] - 0.5)*100;
-	    object.position.y = (p[1] - 0.5)*100;
-	    object.position.z = (p[2] - 0.5)*100;
-	}
-	callback();
-    });
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/step?dt=0.1', true);
+    xhr.responseType = 'arraybuffer'
+    xhr.onload = function(event) {
+        var buf = xhr.response;
+        if (buf) {
+            var p = new Float32Array(buf);
+
+            var oi = 0;
+            for (var i = 0; i < p.length; i+=3) {
+                var object = spheres[oi];
+                
+                object.position.x = (p[i] - 0.5)*100;
+                object.position.y = (p[i+1] - 0.5)*100;
+                object.position.z = (p[i+2] - 0.5)*100;
+                oi += 1;
+            }
+            callback();
+        } else {
+            console.log(event);
+        }
+    }
+    xhr.send(null);
 }
 
 function init() {
@@ -44,17 +54,17 @@ function init() {
 
     spheres = [];
     $.getJSON("/bodies", function(data) {
-	for (var i = 0; i < data.length; i++) {
-	    var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
-	    var p = data[i];
+        for (var i = 0; i < data.length; i++) {
+            var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
+            var p = data[i];
 
-	    object.position.x = (p[0] - 0.5)*100;
-	    object.position.y = (p[1] - 0.5)*100;
-	    object.position.z = (p[2] - 0.5)*100;
+            object.position.x = (p[0] - 0.5)*100;
+            object.position.y = (p[1] - 0.5)*100;
+            object.position.z = (p[2] - 0.5)*100;
 
-	    spheres.push(object);
-	    scene.add(object);
-	}
+            spheres.push(object);
+            scene.add(object);
+        }
     })
 
     renderer = new THREE.WebGLRenderer();
@@ -65,9 +75,9 @@ function init() {
 }
 
 function animate() {
-    update_bodies(function() {	
-	requestAnimationFrame( animate );
-	controls.update();
-	renderer.render( scene, camera );
+    update_bodies(function() {    
+        requestAnimationFrame( animate );
+        controls.update();
+        renderer.render( scene, camera );
     });
 }
