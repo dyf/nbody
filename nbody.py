@@ -84,18 +84,19 @@ def save(nb, file_name):
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
-    nb = NBody(2, integrator='rk4',
+    nb = NBody(4, integrator='rk4',
                D=2,
                K=0.1,
+               M=[1,1,1,.01]
                #P = [1,-1]
-               P = [[1,.5],[0,.5]],
-               V = [[0,.1],[0,-.1]]
+               #P = [[1,.5],[0,.5]],
+               #V = [[0,.1],[0,-.1]]
     )
     for i in range(50):
         save(nb, 'test%02d.jpg' % i)
         print("P")
         print(nb.P)
-        nb.step(.1)
+        nb.step(.01)
 
 if __name__ == "__main__": main()
 
