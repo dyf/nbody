@@ -1,20 +1,14 @@
 $(function() {
     init();
-    animate();
 });
 
 var camera, scene, renderer, container, controls;
 var spheres = null;
 
 function update_bodies(callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/step?dt=0.1', true);
-    xhr.responseType = 'arraybuffer'
-    xhr.onload = function(event) {
-        var buf = xhr.response;
-        if (buf) {
-            var p = new Float32Array(buf);
-
+    fetch_bodies(function(p) {
+        if (p) {
+            console.log(p);
             var oi = 0;
             for (var i = 0; i < p.length; i+=3) {
                 var object = spheres[oi];
@@ -24,9 +18,25 @@ function update_bodies(callback) {
                 object.position.z = (p[i+2] - 0.5)*100;
                 oi += 1;
             }
-            callback();
         } else {
-            console.log(event);
+            console.log("no bodies...");
+        }
+            
+        callback();
+    });
+}
+
+function fetch_bodies(callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/bodies', true);
+    xhr.responseType = 'arraybuffer'
+    xhr.onload = function(event) {
+        var buf = xhr.response;
+        if (buf) {
+            var p = new Float32Array(buf);
+            callback(p);
+        } else {
+            callback();
         }
     }
     xhr.send(null);
@@ -53,25 +63,30 @@ function init() {
     var geometry = new THREE.SphereBufferGeometry( 5, 32, 32 );
 
     spheres = [];
-    $.getJSON("/bodies", function(data) {
-        for (var i = 0; i < data.length; i++) {
+    fetch_bodies(function(p) {
+        for (var i = 0; i < p.length; i+=3) {
             var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
-            var p = data[i];
 
-            object.position.x = (p[0] - 0.5)*100;
-            object.position.y = (p[1] - 0.5)*100;
-            object.position.z = (p[2] - 0.5)*100;
+            object.position.x = (p[i] - 0.5)*100;
+            object.position.y = (p[i+1] - 0.5)*100;
+            object.position.z = (p[i+2] - 0.5)*100;
 
             spheres.push(object);
             scene.add(object);
         }
-    })
 
-    renderer = new THREE.WebGLRenderer();
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer = new THREE.WebGLRenderer();
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        
+        container.appendChild(renderer.domElement);
 
-    container.appendChild(renderer.domElement);
+        $.getJSON('/start', function() {
+            animate();
+        });
+    });
+
+    
 }
 
 function animate() {
