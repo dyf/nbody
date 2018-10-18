@@ -30,10 +30,7 @@ function start_simulation() {
 }
 
 function set_simulation_dt() {
-    console.log("hi");
-    $.getJSON('/start?dt='+dt().toString(), function() {
-        running = false;
-    });
+    $.getJSON('/start?dt='+dt().toString(), function() {});
 }
 
 function update_bodies(callback) {
@@ -81,7 +78,7 @@ function init() {
     
     scene = new THREE.Scene();
 
-    controls = new THREE.TrackballControls( camera );
+    controls = new THREE.TrackballControls( camera, container );
     controls.update();
 
     scene.background = new THREE.Color( 0xf0f0f0 );
