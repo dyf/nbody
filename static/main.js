@@ -4,8 +4,7 @@ var running = false;
 
 
 $(function() {
-    $("#start_button").on('click', start_simulation);
-    $("#stop_button").on('click', stop_simulation);
+    $("#toggle_button").on('click', toggle_simulation);
     $("#dt_slider").on('input change', set_simulation_dt);
 
     init();
@@ -16,21 +15,14 @@ function dt() {
     return v / 2500.0;
 }
 
-function stop_simulation() {
-    $.getJSON('/stop', function() {
-        running = false;
-        console.log("SOTPPED", running);
-    });
-}
-
-function start_simulation() {
-    $.getJSON('/start?dt='+dt().toString(), function() {
-        running = true;
+function toggle_simulation() {
+    $.getJSON('/toggle?dt='+dt().toString(), function() {
+        running = !running;
     });
 }
 
 function set_simulation_dt() {
-    $.getJSON('/start?dt='+dt().toString(), function() {});
+    $.getJSON('/set?dt='+dt().toString(), function() {});
 }
 
 function update_bodies(callback) {

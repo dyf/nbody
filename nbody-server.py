@@ -38,17 +38,14 @@ def run_nbody(q):
         except queue.Empty:
             continue
 
-        if cmd_dt is not None:
-            dt = cmd_dt
-            
         if command == 'step':
+            dt = cmd_dt
             nb.step(dt)
-        elif command == "stop":
-            running = False
-        elif command == "start":
-            running = True
-        elif command == "set_dt":
-            pass
+        elif command == "toggle":
+            dt = cmd_dt
+            running = not running
+        elif command == "set":
+            dt = cmd_dt
     
 app = Flask(__name__)
 
@@ -67,21 +64,16 @@ def step():
     Q.put(['step', dt])
     return jsonify({'msg':'success'})
 
-@app.route('/start')
-def start():
-    dt = float(request.args.get('dt'))
-    Q.put(['start', dt])
-    return jsonify({'msg':'success'})
-
 @app.route('/set')
 def set():
     dt = float(request.args.get('dt'))
-    Q.put(['set_dt', dt])
+    Q.put(['set', dt])
     return jsonify({'msg':'success'})
 
-@app.route('/stop')
-def stop():
-    Q.put(['stop', None])
+@app.route('/toggle')
+def toggle():
+    dt = float(request.args.get('dt'))
+    Q.put(['toggle', dt])
     return jsonify({'msg':'success'})
 
 if __name__ == "__main__":
