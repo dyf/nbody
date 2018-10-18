@@ -26,23 +26,29 @@ def run_nbody(q):
     p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
     np.copyto(p, nb.P)
     nb.P = p
+    dt = None
 
     while True:
         if running:
-            nb.step(0.01)
+            nb.step(dt)
 
         try:
-            msg = q.get(block=False)
+            command, cmd_dt = q.get(block=False)
+            print(command, dt)
         except queue.Empty:
             continue
-            
 
-        if msg == 'step':
-            nb.step(0.01)
-        elif msg == "stop":
+        if cmd_dt is not None:
+            dt = cmd_dt
+            
+        if command == 'step':
+            nb.step(dt)
+        elif command == "stop":
             running = False
-        elif msg == "start":
+        elif command == "start":
             running = True
+        elif command == "set_dt":
+            pass
     
 app = Flask(__name__)
 
@@ -58,17 +64,24 @@ def bodies():
 @app.route('/step')
 def step():
     dt = float(request.args.get('dt'))
-    Q.put('step')
+    Q.put(['step', dt])
     return jsonify({'msg':'success'})
 
 @app.route('/start')
 def start():
-    Q.put('start')
+    dt = float(request.args.get('dt'))
+    Q.put(['start', dt])
+    return jsonify({'msg':'success'})
+
+@app.route('/set')
+def set():
+    dt = float(request.args.get('dt'))
+    Q.put(['set_dt', dt])
     return jsonify({'msg':'success'})
 
 @app.route('/stop')
 def stop():
-    Q.put('stop')
+    Q.put(['stop', None])
     return jsonify({'msg':'success'})
 
 if __name__ == "__main__":

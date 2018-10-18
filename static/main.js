@@ -1,14 +1,44 @@
+var camera, scene, renderer, container, controls;
+var spheres = null;
+var running = false;
+
+
 $(function() {
+    $("#start_button").on('click', start_simulation);
+    $("#stop_button").on('click', stop_simulation);
+    $("#dt_slider").on('input change', set_simulation_dt);
+
     init();
 });
 
-var camera, scene, renderer, container, controls;
-var spheres = null;
+function dt() {
+    v = $("#dt_slider").val();
+    return v / 2500.0;
+}
+
+function stop_simulation() {
+    $.getJSON('/stop', function() {
+        running = false;
+        console.log("SOTPPED", running);
+    });
+}
+
+function start_simulation() {
+    $.getJSON('/start?dt='+dt().toString(), function() {
+        running = true;
+    });
+}
+
+function set_simulation_dt() {
+    console.log("hi");
+    $.getJSON('/start?dt='+dt().toString(), function() {
+        running = false;
+    });
+}
 
 function update_bodies(callback) {
     fetch_bodies(function(p) {
         if (p) {
-            console.log(p);
             var oi = 0;
             for (var i = 0; i < p.length; i+=3) {
                 var object = spheres[oi];
@@ -81,18 +111,23 @@ function init() {
         
         container.appendChild(renderer.domElement);
 
-        $.getJSON('/start', function() {
-            animate();
-        });
-    });
+        animate()
 
-    
+
+    });    
+}
+
+function render() {
+    controls.update();
+    renderer.render( scene, camera );
 }
 
 function animate() {
-    update_bodies(function() {    
-        requestAnimationFrame( animate );
-        controls.update();
-        renderer.render( scene, camera );
-    });
+    requestAnimationFrame( animate );
+    
+    if (running) {
+        update_bodies(render);
+    } else {
+        render();
+    }    
 }
