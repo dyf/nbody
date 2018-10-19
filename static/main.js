@@ -5,6 +5,7 @@ var running = false;
 
 $(function() {
     $("#toggle_button").on('click', toggle_simulation);
+    $("#reset_button").on('click', reset_simulation);
     $("#dt_slider").on('input change', set_simulation_dt);
 
     init();
@@ -12,7 +13,14 @@ $(function() {
 
 function dt() {
     v = $("#dt_slider").val();
-    return v / 2500.0;
+    return v / 100000.0;
+}
+
+function reset_simulation() {
+    $.getJSON('/reset', function () {
+        running = false;
+        update_bodies(render);
+    });
 }
 
 function toggle_simulation() {
@@ -22,7 +30,14 @@ function toggle_simulation() {
 }
 
 function set_simulation_dt() {
-    $.getJSON('/set?dt='+dt().toString(), function() {});
+    if (!running) {
+        console.log("starting...");
+        toggle_simulation(function() {
+            $.getJSON('/set?dt='+dt().toString());
+        });
+    } else {
+        $.getJSON('/set?dt='+dt().toString());
+    }
 }
 
 function update_bodies(callback) {
@@ -66,7 +81,7 @@ function init() {
     document.body.appendChild( container );
     
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
-    camera.position.set(1000,0,0);
+    camera.position.set(200,0,0);
     
     scene = new THREE.Scene();
 

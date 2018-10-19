@@ -4,15 +4,13 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 4
+N = 20
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 LOCK = Lock()
 DTYPE = np.float32
 
-def run_nbody(q):
-    running = False
-    
+def init_sim():
     nb = NBody(
         N,
         integrator='rk4',
@@ -26,6 +24,14 @@ def run_nbody(q):
     p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
     np.copyto(p, nb.P)
     nb.P = p
+
+    return nb
+    
+def run_nbody(q):
+    running = False
+    
+    nb = init_sim()
+    
     dt = None
 
     while True:
@@ -46,6 +52,10 @@ def run_nbody(q):
             running = not running
         elif command == "set":
             dt = cmd_dt
+        elif command == "reset":
+            nb = init_sim()
+            running = False
+            
     
 app = Flask(__name__)
 
@@ -68,6 +78,11 @@ def step():
 def set():
     dt = float(request.args.get('dt'))
     Q.put(['set', dt])
+    return jsonify({'msg':'success'})
+
+@app.route('/reset')
+def reset():
+    Q.put(['reset', None])
     return jsonify({'msg':'success'})
 
 @app.route('/toggle')
