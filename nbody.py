@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.spatial.distance as ssdist
-import numba
+
+np.random.seed(0)
 
 class NBody:
     def __init__(self, N, G=100.0, K=0.1, D=3, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
@@ -13,7 +14,10 @@ class NBody:
         self.P = np.array(P).astype(dtype) if P else np.random.random((N,D)).astype(dtype)
         self.V = np.array(V).astype(dtype) if V else np.random.random((N,D)).astype(dtype)
         self.R = np.array(R).astype(dtype) if R else np.ones(N, dtype=dtype)
+        self.Fbuf = np.zeros((N,N,D), dtype=dtype)
 
+        self.tidx = np.triu_indices(N, k=1)
+        self.lidx = np.tril_indices(N, k=-1)
 
         if integrator == 'euler':
             self.step_fn = self.step_euler
@@ -49,11 +53,11 @@ class NBody:
         return ( (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0,
                  (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0 )
 
-    def compute_derivatives(self, dt, V, P):
+    def compute_derivatives_full(self, dt, V, P):
         N = len(self.M)
 
         # pairwise distances
-        dP = P[:, np.newaxis] - P[np.newaxis,:]
+        dP = (P[:, np.newaxis] - P[np.newaxis,:])
         r = ssdist.squareform(ssdist.pdist(self.P))
         r3 = np.power(r,3)
         r3[r==0] = 1 
@@ -61,17 +65,38 @@ class NBody:
         # force due to gravity
         m1m2 = np.outer(self.M, self.M)[:,:,np.newaxis]
         Fg = self.G * m1m2 * (dP / r3[:,:,np.newaxis])
-
+        Fg = Fg.sum(axis=0)
+        
         # force due to drag
         Fd = - self.K * V
 
-        # detect colllisions
-        #r1r2 = R[:, np.newaxis] + R[np.newaxis, :]
-        #overlapping = np.where(r1r2 < r)
+        F = Fg + Fd
+        dV = dt * F / self.M[:,np.newaxis]
+        dP = (V+dV) * dt + 0.5 * dV * dt * dt
 
-        # F * dt = dPm = 
+        return dV, dP
         
-        F = (Fg+Fd).sum(axis=0)    
+    def compute_derivatives(self, dt, V, P):
+        N = len(self.M)
+
+        # pairwise distances
+        dP = (P[:, np.newaxis] - P[np.newaxis,:])[self.tidx]
+        r = ssdist.pdist(self.P)
+        r3 = np.power(r,3)
+        r3[r==0] = 1 
+
+        # force due to gravity
+        m1m2 = np.outer(self.M, self.M)[self.tidx][:,np.newaxis]
+        Fg = self.G * m1m2 * (dP / r3[:,np.newaxis])
+
+        self.Fbuf[self.tidx] = Fg
+        self.Fbuf[self.lidx] = -np.swapaxes(self.Fbuf,0,1)[self.lidx]
+        Fg = self.Fbuf.sum(axis=0)
+        
+        # force due to drag
+        Fd = - self.K * V
+
+        F = Fg+Fd
         dV = dt * F / self.M[:,np.newaxis]
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
 
@@ -99,19 +124,22 @@ def save(nb, file_name):
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
-    nb = NBody(4, integrator='rk4',
-               D=2,
-               K=0.1,
-               M=[1,1,1,.01]
+    nb = NBody(400, integrator='euler',
+               D=3,
+               K=0.1
                #P = [1,-1]
                #P = [[1,.5],[0,.5]],
                #V = [[0,.1],[0,-.1]]
     )
-    for i in range(50):
-        save(nb, 'test%02d.jpg' % i)
-        print("P")
-        print(nb.P)
+    import time
+    tstart = time.time()
+    for i in range(1000):
+        #save(nb, 'test%02d.jpg' % i)
+        #print("P")
+        #print(nb.P)
         nb.step(.01)
+    tstop = time.time()
+    print(tstop - tstart)
 
 if __name__ == "__main__": main()
 
