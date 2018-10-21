@@ -4,7 +4,7 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 20
+N = 100
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 LOCK = Lock()

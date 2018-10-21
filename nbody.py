@@ -1,8 +1,9 @@
 import numpy as np
 import scipy.spatial.distance as ssdist
+import numba
 
 class NBody:
-    def __init__(self, N, G=1.0, K=0.1, D=3, M=None, P=None, V=None, integrator='euler', dtype=np.float32, lock=None):
+    def __init__(self, N, G=100.0, K=0.1, D=3, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
         self.D = D
         self.G = G
         self.K = K
@@ -10,17 +11,20 @@ class NBody:
         
         self.M = np.array(M).astype(dtype) if M else np.ones(N, dtype=dtype)
         self.P = np.array(P).astype(dtype) if P else np.random.random((N,D)).astype(dtype)
-        self.V = np.array(V).astype(dypte) if V else np.zeros((N,D), dtype=dtype)
+        self.V = np.array(V).astype(dtype) if V else np.random.random((N,D)).astype(dtype)
+        self.R = np.array(R).astype(dtype) if R else np.ones(N, dtype=dtype)
 
 
         if integrator == 'euler':
-            self.step = self.step_euler
+            self.step_fn = self.step_euler
         elif integrator == 'rk2':
-            self.step = self.step_rk2
+            self.step_fn = self.step_rk2
         elif integrator == 'rk4':
-            self.step = self.step_rk4
+            self.step_fn = self.step_rk4
 
-    def _update(self, dV, dP):
+    def step(self, dt):
+        dV, dP = self.step_fn(dt)
+
         if self.lock:
             self.lock.acquire()
 
@@ -31,44 +35,47 @@ class NBody:
             self.lock.release()
         
     def step_euler(self, dt):
-        dV, dP = compute_derivatives(dt, self.G, self.K, self.M, self.V, self.P)
-        self._update(dV,dP)
+        return self.compute_derivatives(dt, self.V, self.P)
 
     def step_rk2(self, dt):
-        dV1, dP1 = compute_derivatives(dt, self.G, self.K, self.M, self.V, self.P)
-        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.K, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
-        self._update(dV2,dP2)
+        dV1, dP1 = self.compute_derivatives(dt, self.V, self.P)
+        return self.compute_derivatives(dt*0.5, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
 
     def step_rk4(self, dt):
-        dV1, dP1 = compute_derivatives(dt, self.G, self.K, self.M, self.V, self.P)
-        dV2, dP2 = compute_derivatives(dt*0.5, self.G, self.K, self.M, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
-        dV3, dP3 = compute_derivatives(dt*0.5, self.G, self.K, self.M, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
-        dV4, dP4 = compute_derivatives(dt, self.G, self.K, self.M, self.V + dV3*dt, self.P + dP3*dt)
-        self._update((dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0,
-                     (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0)
+        dV1, dP1 = self.compute_derivatives(dt, self.V, self.P)
+        dV2, dP2 = self.compute_derivatives(dt*0.5, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
+        dV3, dP3 = self.compute_derivatives(dt*0.5, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
+        dV4, dP4 = self.compute_derivatives(dt, self.V + dV3*dt, self.P + dP3*dt)
+        return ( (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0,
+                 (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0 )
 
+    def compute_derivatives(self, dt, V, P):
+        N = len(self.M)
+
+        # pairwise distances
+        dP = P[:, np.newaxis] - P[np.newaxis,:]
+        r = ssdist.squareform(ssdist.pdist(self.P))
+        r3 = np.power(r,3)
+        r3[r==0] = 1 
+
+        # force due to gravity
+        m1m2 = np.outer(self.M, self.M)[:,:,np.newaxis]
+        Fg = self.G * m1m2 * (dP / r3[:,:,np.newaxis])
+
+        # force due to drag
+        Fd = - self.K * V
+
+        # detect colllisions
+        #r1r2 = R[:, np.newaxis] + R[np.newaxis, :]
+        #overlapping = np.where(r1r2 < r)
+
+        # F * dt = dPm = 
         
-def compute_forces(G, K, M, V, P):
-    N = len(M)
+        F = (Fg+Fd).sum(axis=0)    
+        dV = dt * F / self.M[:,np.newaxis]
+        dP = (V+dV) * dt + 0.5 * dV * dt * dt
 
-    dP = P[:, np.newaxis] - P[np.newaxis,:]
-    r = ssdist.squareform(ssdist.pdist(P))
-    r3 = np.power(r,2)
-    r3[r==0] = 1 
-
-    m1m2 = np.outer(M, M)[:,:,np.newaxis]
-    Fg = G * m1m2 * (dP / r3[:,:,np.newaxis])
-    Fd = - K * V
-
-    return (Fg+Fd).sum(axis=0)
-
-def compute_derivatives(dt, G, K, M, V, P):
-    F = compute_forces(G, K, M, V, P)
-    
-    dV = dt * F / M[:,np.newaxis]
-    dP = (V+dV) * dt + 0.5 * dV * dt * dt
-
-    return dV, dP
+        return dV, dP
 
 def save(nb, file_name):
     import matplotlib
