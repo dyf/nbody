@@ -9,16 +9,20 @@ D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 LOCK = Lock()
 DTYPE = np.float32
+K = 0.7
 
 def init_sim():
     nb = NBody(
         N,
         integrator='rk4',
         D=D,
-        K=0.1,
+        K=K,
         lock=LOCK,
         dtype=DTYPE
     )
+    nb.M[0] = 1000.0
+    nb.fix(0)
+    nb.V = 100
 
     # use the shared array
     p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
@@ -40,7 +44,7 @@ def run_nbody(q):
 
         try:
             command, cmd_dt = q.get(block=False)
-            print(command, dt)
+            print(command, cmd_dt)
         except queue.Empty:
             continue
 

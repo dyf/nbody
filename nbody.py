@@ -26,6 +26,11 @@ class NBody:
         elif integrator == 'rk4':
             self.step_fn = self.step_rk4
 
+        self.fixed = {}
+
+    def fix(self, i):
+        self.fixed[i] = self.P[i]
+        
     def step(self, dt):
         dV, dP = self.step_fn(dt)
 
@@ -34,6 +39,9 @@ class NBody:
 
         self.V += dV
         self.P += dP
+
+        for i,pi in self.fixed.items():
+            self.P[i] = pi
 
         if self.lock:
             self.lock.release()
@@ -65,12 +73,12 @@ class NBody:
         # force due to gravity
         m1m2 = np.outer(self.M, self.M)[:,:,np.newaxis]
         Fg = self.G * m1m2 * (dP / r3[:,:,np.newaxis])
-        Fg = Fg.sum(axis=0)
-        
-        # force due to drag
-        Fd = - self.K * V
+        F = Fg.sum(axis=0)
 
-        F = Fg + Fd
+        # force due to drag
+        if self.K != 0:
+            F += - self.K * V
+
         dV = dt * F / self.M[:,np.newaxis]
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
 
@@ -91,12 +99,12 @@ class NBody:
 
         self.Fbuf[self.tidx] = Fg
         self.Fbuf[self.lidx] = -np.swapaxes(self.Fbuf,0,1)[self.lidx]
-        Fg = self.Fbuf.sum(axis=0)
+        F = self.Fbuf.sum(axis=0)
         
         # force due to drag
-        Fd = - self.K * V
+        if self.K != 0:
+            F += - self.K * V
 
-        F = Fg+Fd
         dV = dt * F / self.M[:,np.newaxis]
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
 

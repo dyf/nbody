@@ -13,7 +13,7 @@ $(function() {
 
 function dt() {
     v = $("#dt_slider").val();
-    return v / 100000.0;
+    return v / 500000.0;
 }
 
 function reset_simulation() {
@@ -23,9 +23,12 @@ function reset_simulation() {
     });
 }
 
-function toggle_simulation() {
+function toggle_simulation(cb) {
+    running = !running;
     $.getJSON('/toggle?dt='+dt().toString(), function() {
-        running = !running;
+        
+        if (cb)
+            cb();
     });
 }
 
