@@ -44,16 +44,15 @@ function set_simulation_dt() {
 }
 
 function update_bodies(callback) {
-    fetch_bodies(function(p) {
+    fetch_bodies(function(n, d, p, r) {
         if (p) {
-            var oi = 0;
-            for (var i = 0; i < p.length; i+=3) {
-                var object = spheres[oi];
-                
-                object.position.x = (p[i] - 0.5)*100;
-                object.position.y = (p[i+1] - 0.5)*100;
-                object.position.z = (p[i+2] - 0.5)*100;
-                oi += 1;
+            for (var i = 0; i < n; i++) {
+                var object = spheres[i];
+
+                object.scale.set(r[i]*100, r[i]*100, r[i]*100);
+                object.position.set((p[d*i]   - 0.5)*100,
+                                    (p[d*i+1] - 0.5)*100,
+                                    (p[d*i+2] - 0.5)*100);
             }
         } else {
             console.log("no bodies...");
@@ -71,7 +70,10 @@ function fetch_bodies(callback) {
         var buf = xhr.response;
         if (buf) {
             var p = new Float32Array(buf);
-            callback(p);
+            
+            callback(Math.round(p[0]), Math.round(p[1]),
+                     p.slice(2, p[0]*p[1]+2),
+                     p.slice(p[0]*p[1]+2));
         } else {
             callback();
         }
@@ -84,7 +86,7 @@ function init() {
     document.body.appendChild( container );
     
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
-    camera.position.set(200,0,0);
+    camera.position.set(0,0,100);
     
     scene = new THREE.Scene();
 
@@ -97,17 +99,17 @@ function init() {
     light.position.set( 1, 1, 1 ).normalize();
     scene.add( light );
 
-    var geometry = new THREE.SphereBufferGeometry( 5, 32, 32 );
+    var geometry = new THREE.SphereBufferGeometry( 1, 32, 32 );
 
     spheres = [];
-    fetch_bodies(function(p) {
-        for (var i = 0; i < p.length; i+=3) {
+    fetch_bodies(function(n, d, p, r) {
+        for (var i = 0; i < n; i++) {
             var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
-
-            object.position.x = (p[i] - 0.5)*100;
-            object.position.y = (p[i+1] - 0.5)*100;
-            object.position.z = (p[i+2] - 0.5)*100;
-
+            object.scale.set(r[i]*100, r[i]*100, r[i]*100);
+            object.position.set((p[d*i]   - 0.5)*100,
+                                (p[d*i+1] - 0.5)*100,
+                                (p[d*i+2] - 0.5)*100);
+            
             spheres.push(object);
             scene.add(object);
         }
@@ -118,9 +120,7 @@ function init() {
         
         container.appendChild(renderer.domElement);
 
-        animate()
-
-
+        animate();
     });    
 }
 

@@ -4,9 +4,11 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 100
+N = 2
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
+R = RawArray(np.ctypeslib.ctypes.c_float, N)
+
 LOCK = Lock()
 DTYPE = np.float32
 K = 0.7
@@ -16,18 +18,37 @@ def init_sim():
         N,
         integrator='rk4',
         D=D,
-        K=K,
+        P=[[0,.5,.5],
+           [1,.5,.5]],
+        R=[.1,.1],
+        V=[[1,0,0],
+           [-1,0,0]],
+        M=[1,1],
+        K=0,
         lock=LOCK,
         dtype=DTYPE
     )
-    nb.M[0] = 1000.0
-    nb.fix(0)
-    nb.V = 100
+    
+    #nb = NBody(
+    #    N,
+    #    integrator='rk4',
+    #    D=D,
+    #    K=K,
+    #    lock=LOCK,
+    #    dtype=DTYPE
+    #)
+    #nb.M[0] = 1000.0
+    #nb.fix(0)
+    #nb.V = 100
 
     # use the shared array
-    p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
+    #p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
+    p = np.frombuffer(P, dtype=DTYPE).reshape(nb.P.shape[0], nb.P.shape[1])
+    r = np.frombuffer(R, dtype=DTYPE).reshape(nb.R.shape[0])
     np.copyto(p, nb.P)
+    np.copyto(r, nb.R)
     nb.P = p
+    nb.R = r
 
     return nb
     
@@ -69,8 +90,9 @@ def index():
 
 @app.route('/bodies')
 def bodies():
-    arr = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
-    return arr.tobytes()
+    parr = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
+    rarr = np.frombuffer(R, dtype=DTYPE).reshape(N)
+    return np.array([N,D], dtype=DTYPE).tobytes() + parr.tobytes() + rarr.tobytes()
 
 @app.route('/step')
 def step():

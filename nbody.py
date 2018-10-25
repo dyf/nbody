@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.spatial.distance as ssdist
+from numpy.core.umath_tests import inner1d
 
 np.random.seed(0)
 
@@ -105,8 +106,50 @@ class NBody:
         if self.K != 0:
             F += - self.K * V
 
+        #print("p",self.P)
+
+        # force due to collision
+        r1r2 = (self.R[:, np.newaxis] + self.R[np.newaxis, :])[self.tidx]
+        hits = np.where(r1r2 > r)
+        if len(hits[0]):
+            dPh = dP[hits] / r[hits] # unit vector normal to surface
+
+            # I want to apply a force on both bodies 
+            # I know what direction the force will be applied
+            # momentum is the same on either side of the collision
+            # let's just give either side half
+
+            # m1v1i + m2v2i = m1v1f + m2v2f
+            # m2v2i = m1v1f + m1v2f # relative to body 1
+
+            # Pt = m1v1f + m2v2f
+            #print("****")
+            M1h = self.M[self.tidx[0][hits]]
+            M2h = self.M[self.tidx[1][hits]]
+
+            V1h = self.V[self.tidx[0][hits]]
+            V2h = self.V[self.tidx[1][hits]]
+
+            Vh = V2h - V1h
+            Vhn = Vh / np.linalg.norm(Vh)
+
+            ptotal = np.linalg.norm(M2h * Vh, axis=1) * 2
+
+            # need to scale by how lined up they are
+            scale = inner1d(dPh, Vhn)
+
+            p1h = 0.5 * ptotal * dPh * scale
+            p2h = -0.5 * ptotal * dPh * scale
+
+            #print("before", F)
+            F[self.tidx[0][hits],:] += p1h / dt
+            F[self.tidx[1][hits],:] += p2h / dt
+            #print("fafter", F)
+
         dV = dt * F / self.M[:,np.newaxis]
+        #print("dV",dV)
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
+        #print("dP",dP)
 
         return dV, dP
 
@@ -132,22 +175,22 @@ def save(nb, file_name):
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
-    nb = NBody(400, integrator='euler',
-               D=3,
-               K=0.1
+    nb = NBody(2, integrator='euler',
+               D=2,
+               K=0,
+               M = [1,1],
+               P = [[-1,0],[1,0]],
+               R = [ 0.5, 0.5],
+               V = [ [0,0], [0,0] ]
                #P = [1,-1]
                #P = [[1,.5],[0,.5]],
                #V = [[0,.1],[0,-.1]]
     )
-    import time
-    tstart = time.time()
     for i in range(1000):
         #save(nb, 'test%02d.jpg' % i)
         #print("P")
         #print(nb.P)
         nb.step(.01)
-    tstop = time.time()
-    print(tstop - tstart)
 
 if __name__ == "__main__": main()
 
