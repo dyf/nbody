@@ -11,10 +11,10 @@ class NBody:
         self.K = K
         self.lock = lock
         
-        self.M = np.array(M).astype(dtype) if M else np.ones(N, dtype=dtype)
-        self.P = np.array(P).astype(dtype) if P else np.random.random((N,D)).astype(dtype)
-        self.V = np.array(V).astype(dtype) if V else np.random.random((N,D)).astype(dtype)
-        self.R = np.array(R).astype(dtype) if R else np.ones(N, dtype=dtype)
+        self.M = np.array(M).astype(dtype) if M is not None else np.ones(N, dtype=dtype)
+        self.P = np.array(P).astype(dtype) if P is not None else np.random.random((N,D)).astype(dtype)
+        self.V = np.array(V).astype(dtype) if V is not None else np.random.random((N,D)).astype(dtype)
+        self.R = np.array(R).astype(dtype) if R is not None else np.ones(N, dtype=dtype)
         self.Fbuf = np.zeros((N,N,D), dtype=dtype)
 
         self.tidx = np.triu_indices(N, k=1)
@@ -106,50 +106,58 @@ class NBody:
         if self.K != 0:
             F += - self.K * V
 
-        #print("p",self.P)
-
         # force due to collision
         r1r2 = (self.R[:, np.newaxis] + self.R[np.newaxis, :])[self.tidx]
-        hits = np.where(r1r2 > r)
-        if len(hits[0]):
-            dPh = dP[hits] / r[hits] # unit vector normal to surface
+        hits = np.where(r1r2 > r)[0]
 
-            # I want to apply a force on both bodies 
-            # I know what direction the force will be applied
-            # momentum is the same on either side of the collision
-            # let's just give either side half
+        offsets = None
+        if len(hits):
+            dPh = dP[hits] / r[hits, np.newaxis] # unit vector normal to surface
+            src_idx = self.tidx[0][hits]
+            tgt_idx = self.tidx[1][hits]
+            
+            hdr = 0.5 * (r[hits] - r1r2[hits])
 
-            # m1v1i + m2v2i = m1v1f + m2v2f
-            # m2v2i = m1v1f + m1v2f # relative to body 1
+            offsets = np.zeros_like(self.P)
+            offsets[src_idx,:] = -dPh * hdr[:,np.newaxis]
+            offsets[tgt_idx,:] = dPh * hdr[:,np.newaxis]
 
-            # Pt = m1v1f + m2v2f
-            #print("****")
-            M1h = self.M[self.tidx[0][hits]]
-            M2h = self.M[self.tidx[1][hits]]
+            M1h = self.M[src_idx]
+            M2h = self.M[tgt_idx]
 
-            V1h = self.V[self.tidx[0][hits]]
-            V2h = self.V[self.tidx[1][hits]]
+            V1h = self.V[src_idx]
+            V2h = self.V[tgt_idx]
 
-            Vh = V2h - V1h
-            Vhn = Vh / np.linalg.norm(Vh)
+            
+            
+            # project V1 and V2 onto dP
+            bdb = inner1d(dPh, dPh)
+            V1p = (inner1d(V1h, dPh) / bdb)[:, np.newaxis] * dPh
+            V2p = (inner1d(V2h, dPh) / bdb)[:, np.newaxis] * dPh
+            
+            # orthogonal component sticks around
+            V1o = V1h - V1p
+            V2o = V2h - V2p
 
-            ptotal = np.linalg.norm(M2h * Vh, axis=1) * 2
+            # new velocities after collision
+            V1f = ((M1h - M2h) / (M1h + M2h))[:, np.newaxis] * V1p  +  (2 * M2h / (M1h + M2h))[:, np.newaxis] * V2p
+            V2f = (2 * M1h / (M1h + M2h))[:, np.newaxis] * V1p  -  ((M1h - M2h) / (M1h + M2h))[:, np.newaxis] * V2p 
 
-            # need to scale by how lined up they are
-            scale = inner1d(dPh, Vhn)
+            # f = m * dv / dt
+            F1 = M1h[:, np.newaxis] * ((V1f + V1o) - V1h) / dt
+            F2 = M2h[:, np.newaxis] * ((V2f + V2o) - V2h) / dt
 
-            p1h = 0.5 * ptotal * dPh * scale
-            p2h = -0.5 * ptotal * dPh * scale
+            F[src_idx,:] += F1
+            F[tgt_idx,:] += F2
 
-            #print("before", F)
-            F[self.tidx[0][hits],:] += p1h / dt
-            F[self.tidx[1][hits],:] += p2h / dt
-            #print("fafter", F)
+
 
         dV = dt * F / self.M[:,np.newaxis]
-        #print("dV",dV)
+
+
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
-        #print("dP",dP)
+        if offsets is not None:
+            dP += offsets
 
         return dV, dP
 

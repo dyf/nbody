@@ -4,7 +4,7 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 2
+N = 50
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
@@ -13,34 +13,42 @@ LOCK = Lock()
 DTYPE = np.float32
 K = 0.7
 
-def init_sim():
+def init_nb_bounce():
     nb = NBody(
         N,
         integrator='rk4',
         D=D,
-        P=[[0,.5,.5],
-           [1,.5,.5]],
+        P=[[0,0,.5],
+           [1,1,.5]],
         R=[.1,.1],
-        V=[[1,0,0],
-           [-1,0,0]],
-        M=[1,1],
+        V=[[10,0,0],
+           [0,-10,0]],
+        M=[3,1],
         K=0,
         lock=LOCK,
         dtype=DTYPE
     )
-    
-    #nb = NBody(
-    #    N,
-    #    integrator='rk4',
-    #    D=D,
-    #    K=K,
-    #    lock=LOCK,
-    #    dtype=DTYPE
-    #)
-    #nb.M[0] = 1000.0
-    #nb.fix(0)
-    #nb.V = 100
 
+    return nb
+
+def init_nb_rand():
+    nb = NBody(
+        N,
+        integrator='rk4',
+        D=D,
+        K=K,
+        R=np.ones(N, dtype=DTYPE)*.1,
+        lock=LOCK,
+        dtype=DTYPE
+    )
+    nb.M[0] = 1000.0
+    nb.fix(0)
+
+    return nb
+
+def init_sim():
+    nb = init_nb_rand()
+    
     # use the shared array
     #p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
     p = np.frombuffer(P, dtype=DTYPE).reshape(nb.P.shape[0], nb.P.shape[1])
