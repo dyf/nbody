@@ -15,7 +15,9 @@ class NBody:
         self.P = np.array(P).astype(dtype) if P is not None else np.random.random((N,D)).astype(dtype)
         self.V = np.array(V).astype(dtype) if V is not None else np.random.random((N,D)).astype(dtype)
         self.R = np.array(R).astype(dtype) if R is not None else np.ones(N, dtype=dtype)
+
         self.Fbuf = np.zeros((N,N,D), dtype=dtype)
+        self.offbuf = np.zeros_like(self.P)
 
         self.tidx = np.triu_indices(N, k=1)
         self.lidx = np.tril_indices(N, k=-1)
@@ -106,30 +108,30 @@ class NBody:
         if self.K != 0:
             F += - self.K * V
 
-        # force due to collision
+        # detect collisions
         r1r2 = (self.R[:, np.newaxis] + self.R[np.newaxis, :])[self.tidx]
         hits = np.where(r1r2 > r)[0]
 
-        offsets = None
         if len(hits):
-            dPh = dP[hits] / r[hits, np.newaxis] # unit vector normal to surface
-            src_idx = self.tidx[0][hits]
-            tgt_idx = self.tidx[1][hits]
+            # upper-triangle indices of colliding pairs
+            b1_idx = self.tidx[0][hits]
+            b2_idx = self.tidx[1][hits]
             
+            # unit collision vector
+            dPh = dP[hits] / r[hits, np.newaxis] 
+            
+            # half of the overlapping distance, used for undoing overlap
             hdr = 0.5 * (r[hits] - r1r2[hits])
 
-            offsets = np.zeros_like(self.P)
-            offsets[src_idx,:] = -dPh * hdr[:,np.newaxis]
-            offsets[tgt_idx,:] = dPh * hdr[:,np.newaxis]
+            self.offbuf[b1_idx,:] = -dPh * hdr[:,np.newaxis]
+            self.offbuf[b2_idx,:] = dPh * hdr[:,np.newaxis]
 
-            M1h = self.M[src_idx]
-            M2h = self.M[tgt_idx]
+            # masses and velocities of colliding pairs
+            M1h = self.M[b1_idx]
+            M2h = self.M[b2_idx]
+            V1h = self.V[b1_idx]
+            V2h = self.V[b2_idx]
 
-            V1h = self.V[src_idx]
-            V2h = self.V[tgt_idx]
-
-            
-            
             # project V1 and V2 onto dP
             bdb = inner1d(dPh, dPh)
             V1p = (inner1d(V1h, dPh) / bdb)[:, np.newaxis] * dPh
@@ -144,20 +146,15 @@ class NBody:
             V2f = (2 * M1h / (M1h + M2h))[:, np.newaxis] * V1p  -  ((M1h - M2h) / (M1h + M2h))[:, np.newaxis] * V2p 
 
             # f = m * dv / dt
-            F1 = M1h[:, np.newaxis] * ((V1f + V1o) - V1h) / dt
-            F2 = M2h[:, np.newaxis] * ((V2f + V2o) - V2h) / dt
-
-            F[src_idx,:] += F1
-            F[tgt_idx,:] += F2
-
+            F[b1_idx,:] += M1h[:, np.newaxis] * ((V1f + V1o) - V1h) / dt
+            F[b2_idx,:] += M2h[:, np.newaxis] * ((V2f + V2o) - V2h) / dt
 
 
         dV = dt * F / self.M[:,np.newaxis]
-
-
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
-        if offsets is not None:
-            dP += offsets
+        
+        if len(hits):
+            dP += self.offbuf
 
         return dV, dP
 

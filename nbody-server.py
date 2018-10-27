@@ -4,7 +4,7 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 50
+N = 100
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
@@ -37,7 +37,7 @@ def init_nb_rand():
         integrator='rk4',
         D=D,
         K=K,
-        R=np.ones(N, dtype=DTYPE)*.1,
+        R=np.ones(N, dtype=DTYPE)*.05,
         lock=LOCK,
         dtype=DTYPE
     )
