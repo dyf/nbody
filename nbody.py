@@ -129,8 +129,8 @@ class NBody:
             # masses and velocities of colliding pairs
             M1h = self.M[b1_idx]
             M2h = self.M[b2_idx]
-            V1h = self.V[b1_idx]
-            V2h = self.V[b2_idx]
+            V1h = V[b1_idx]
+            V2h = V[b2_idx]
 
             # project V1 and V2 onto dP
             bdb = inner1d(dPh, dPh)
