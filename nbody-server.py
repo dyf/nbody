@@ -74,7 +74,6 @@ def run_nbody(q):
 
         try:
             command, cmd_dt = q.get(block=False)
-            print(command, cmd_dt)
         except queue.Empty:
             continue
 

@@ -8,7 +8,7 @@ class Gravity(Force):
     def __init__(self, G):
         self.G = G
         
-    def compute(self, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
+    def compute(self, dt, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
         r3 = np.power(r,3)
         r3[r==0] = 1
         
@@ -24,7 +24,7 @@ class Drag(Force):
     def __init__(self, K):
         self.K = K
 
-    def compute(self, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
+    def compute(self, dt, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
         if self.K != 0:
             return -self.K * V
         else:
@@ -32,7 +32,7 @@ class Drag(Force):
             return buf_items
 
 class Collision(CorrectingForce):
-    def compute(self, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
+    def compute(self, dt, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
         F = buf_items
         F.fill(0)
         

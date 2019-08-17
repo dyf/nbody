@@ -94,10 +94,10 @@ class NBody:
         r = ssdist.pdist(P)
 
         F = np.zeros_like(V)
-        F += forces.Gravity(self.G).compute(V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
-        F += forces.Drag(self.K).compute(V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+        F += forces.Gravity(self.G).compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+        F += forces.Drag(self.K).compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
 
-        Fcoll, Poff = forces.Collision().compute(V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+        Fcoll, Poff = forces.Collision().compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
         F += Fcoll
 
         dV = dt * F / self.M[:,np.newaxis]
