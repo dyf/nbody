@@ -8,6 +8,7 @@ N = 2
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
+INTEGRATOR='rk4'
 
 LOCK = Lock()
 DTYPE = np.float32
@@ -16,7 +17,7 @@ K = 0.7
 def init_nb_bounce():
     nb = NBody(
         N,
-        integrator='rk4',
+        integrator=INTEGRATOR,
         D=D,
         P=[[0,0,.5],
            [1,1,.5]],
@@ -34,7 +35,7 @@ def init_nb_bounce():
 def init_nb_rand():
     nb = NBody(
         N,
-        integrator='rk4',
+        integrator=INTEGRATOR,
         D=D,
         K=K,
         R=np.ones(N, dtype=DTYPE)*.05,

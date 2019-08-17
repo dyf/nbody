@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.spatial.distance as ssdist
 import forces
+from integrators import Integrator
+import functools
 
 np.random.seed(0)
 
@@ -22,12 +24,8 @@ class NBody:
         self.tidx = np.triu_indices(N, k=1)
         self.lidx = np.tril_indices(N, k=-1)
 
-        if integrator == 'euler':
-            self.step_fn = self.step_euler
-        elif integrator == 'rk2':
-            self.step_fn = self.step_rk2
-        elif integrator == 'rk4':
-            self.step_fn = self.step_rk4
+
+        self.integrator = Integrator.new(integrator, functools.partial(self.compute_derivatives))
 
         self.fixed = {}
 
@@ -35,7 +33,7 @@ class NBody:
         self.fixed[i] = self.P[i]
         
     def step(self, dt):
-        dV, dP = self.step_fn(dt)
+        dV, dP = self.integrator.step(dt, self.V, self.P)
 
         if self.lock:
             self.lock.acquire()
@@ -104,7 +102,7 @@ def save(nb, file_name):
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
-    nb = NBody(2, integrator='euler',
+    nb = NBody(2, integrator='rk2',
                D=2,
                K=0,
                M = [1,1],
@@ -115,11 +113,13 @@ def main():
                #P = [[1,.5],[0,.5]],
                #V = [[0,.1],[0,-.1]]
     )
+    print(nb.P)
     for i in range(10):
         #save(nb, 'test%02d.jpg' % i)
         #print("P")
-        #print(nb.P)
+
         nb.step(.01)
+        print(nb.P)
 
 if __name__ == "__main__": main()
 
