@@ -46,21 +46,6 @@ class NBody:
 
         if self.lock:
             self.lock.release()
-        
-    def step_euler(self, dt):
-        return self.compute_derivatives(dt, self.V, self.P)
-
-    def step_rk2(self, dt):
-        dV1, dP1 = self.compute_derivatives(dt, self.V, self.P)
-        return self.compute_derivatives(dt*0.5, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
-
-    def step_rk4(self, dt):
-        dV1, dP1 = self.compute_derivatives(dt, self.V, self.P)
-        dV2, dP2 = self.compute_derivatives(dt*0.5, self.V + dV1*dt*0.5, self.P + dP1*dt*0.5)
-        dV3, dP3 = self.compute_derivatives(dt*0.5, self.V + dV2*dt*0.5, self.P + dP2*dt*0.5)
-        dV4, dP4 = self.compute_derivatives(dt, self.V + dV3*dt, self.P + dP3*dt)
-        return ( (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0,
-                 (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0 )
 
     def compute_derivatives(self, dt, V, P):
         N = len(self.M)
