@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.spatial.distance as ssdist
-from numpy.core.umath_tests import inner1d
+import forces
 
 np.random.seed(0)
 
@@ -17,7 +17,7 @@ class NBody:
         self.R = np.array(R).astype(dtype) if R is not None else np.ones(N, dtype=dtype)
 
         self.Fbuf = np.zeros((N,N,D), dtype=dtype)
-        self.offbuf = np.zeros_like(self.P)
+        self.offbuf = np.zeros_like(self.P, dtype=dtype)
 
         self.tidx = np.triu_indices(N, k=1)
         self.lidx = np.tril_indices(N, k=-1)
@@ -90,71 +90,18 @@ class NBody:
     def compute_derivatives(self, dt, V, P):
         N = len(self.M)
 
-        # pairwise distances
         dP = (P[:, np.newaxis] - P[np.newaxis,:])[self.tidx]
         r = ssdist.pdist(self.P)
-        r3 = np.power(r,3)
-        r3[r==0] = 1 
 
-        # force due to gravity
-        m1m2 = np.outer(self.M, self.M)[self.tidx][:,np.newaxis]
-        Fg = self.G * m1m2 * (dP / r3[:,np.newaxis])
+        F = np.zeros_like(V)
+        F += forces.Gravity(self.G).compute(self, dP, r, self.Fbuf)
+        F += forces.Drag(self.K).compute(self)
 
-        self.Fbuf[self.tidx] = Fg
-        self.Fbuf[self.lidx] = -np.swapaxes(self.Fbuf,0,1)[self.lidx]
-        F = self.Fbuf.sum(axis=0)
-        
-        # force due to drag
-        if self.K != 0:
-            F += - self.K * V
-
-        # detect collisions
-        r1r2 = (self.R[:, np.newaxis] + self.R[np.newaxis, :])[self.tidx]
-        hits = np.where(r1r2 > r)[0]
-
-        if len(hits):
-            # upper-triangle indices of colliding pairs
-            b1_idx = self.tidx[0][hits]
-            b2_idx = self.tidx[1][hits]
-            
-            # unit collision vector
-            dPh = dP[hits] / r[hits, np.newaxis] 
-            
-            # half of the overlapping distance, used for undoing overlap
-            hdr = 0.5 * (r[hits] - r1r2[hits])
-
-            self.offbuf[b1_idx,:] = -dPh * hdr[:,np.newaxis]
-            self.offbuf[b2_idx,:] = dPh * hdr[:,np.newaxis]
-
-            # masses and velocities of colliding pairs
-            M1h = self.M[b1_idx]
-            M2h = self.M[b2_idx]
-            V1h = V[b1_idx]
-            V2h = V[b2_idx]
-
-            # project V1 and V2 onto dP
-            bdb = inner1d(dPh, dPh)
-            V1p = (inner1d(V1h, dPh) / bdb)[:, np.newaxis] * dPh
-            V2p = (inner1d(V2h, dPh) / bdb)[:, np.newaxis] * dPh
-            
-            # orthogonal component sticks around
-            V1o = V1h - V1p
-            V2o = V2h - V2p
-
-            # new velocities after collision
-            V1f = ((M1h - M2h) / (M1h + M2h))[:, np.newaxis] * V1p  +  (2 * M2h / (M1h + M2h))[:, np.newaxis] * V2p
-            V2f = (2 * M1h / (M1h + M2h))[:, np.newaxis] * V1p  -  ((M1h - M2h) / (M1h + M2h))[:, np.newaxis] * V2p 
-
-            # f = m * dv / dt
-            F[b1_idx,:] += M1h[:, np.newaxis] * ((V1f + V1o) - V1h) / dt
-            F[b2_idx,:] += M2h[:, np.newaxis] * ((V2f + V2o) - V2h) / dt
-
+        Fcoll, Poff = forces.Collision().compute(self, dP, r, dt)
+        F += Fcoll
 
         dV = dt * F / self.M[:,np.newaxis]
-        dP = (V+dV) * dt + 0.5 * dV * dt * dt
-        
-        if len(hits):
-            dP += self.offbuf
+        dP = (V+dV) * dt + 0.5 * dV * dt * dt + Poff
 
         return dV, dP
 
@@ -191,7 +138,7 @@ def main():
                #P = [[1,.5],[0,.5]],
                #V = [[0,.1],[0,-.1]]
     )
-    for i in range(1000):
+    for i in range(10):
         #save(nb, 'test%02d.jpg' % i)
         #print("P")
         #print(nb.P)

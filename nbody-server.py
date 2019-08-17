@@ -4,7 +4,7 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 100
+N = 2
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
@@ -48,6 +48,7 @@ def init_nb_rand():
 
 def init_sim():
     nb = init_nb_rand()
+    #nb = init_nb_bounce()
     
     # use the shared array
     #p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
