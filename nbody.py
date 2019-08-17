@@ -16,8 +16,8 @@ class NBody:
         self.V = np.array(V).astype(dtype) if V is not None else np.random.random((N,D)).astype(dtype)
         self.R = np.array(R).astype(dtype) if R is not None else np.ones(N, dtype=dtype)
 
-        self.Fbuf = np.zeros((N,N,D), dtype=dtype)
-        self.offbuf = np.zeros_like(self.P, dtype=dtype)
+        self.buf_pairs = np.zeros((N,N,D), dtype=dtype)
+        self.buf_items = np.zeros((N,D), dtype=dtype)
 
         self.tidx = np.triu_indices(N, k=1)
         self.lidx = np.tril_indices(N, k=-1)
@@ -86,18 +86,18 @@ class NBody:
         dP = (V+dV) * dt + 0.5 * dV * dt * dt
 
         return dV, dP
-        
+    
     def compute_derivatives(self, dt, V, P):
         N = len(self.M)
 
         dP = (P[:, np.newaxis] - P[np.newaxis,:])[self.tidx]
-        r = ssdist.pdist(self.P)
+        r = ssdist.pdist(P)
 
         F = np.zeros_like(V)
-        F += forces.Gravity(self.G).compute(self, dP, r, self.Fbuf)
-        F += forces.Drag(self.K).compute(self)
+        F += forces.Gravity(self.G).compute(V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+        F += forces.Drag(self.K).compute(V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
 
-        Fcoll, Poff = forces.Collision().compute(self, dP, r, dt)
+        Fcoll, Poff = forces.Collision().compute(V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
         F += Fcoll
 
         dV = dt * F / self.M[:,np.newaxis]
