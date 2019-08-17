@@ -64,29 +64,6 @@ class NBody:
         return ( (dV1 + 2*dV2 + 2*dV3 + dV4) / 6.0,
                  (dP1 + 2*dP2 + 2*dP3 + dP4) / 6.0 )
 
-    def compute_derivatives_full(self, dt, V, P):
-        N = len(self.M)
-
-        # pairwise distances
-        dP = (P[:, np.newaxis] - P[np.newaxis,:])
-        r = ssdist.squareform(ssdist.pdist(self.P))
-        r3 = np.power(r,3)
-        r3[r==0] = 1 
-
-        # force due to gravity
-        m1m2 = np.outer(self.M, self.M)[:,:,np.newaxis]
-        Fg = self.G * m1m2 * (dP / r3[:,:,np.newaxis])
-        F = Fg.sum(axis=0)
-
-        # force due to drag
-        if self.K != 0:
-            F += - self.K * V
-
-        dV = dt * F / self.M[:,np.newaxis]
-        dP = (V+dV) * dt + 0.5 * dV * dt * dt
-
-        return dV, dP
-    
     def compute_derivatives(self, dt, V, P):
         N = len(self.M)
 
