@@ -7,10 +7,20 @@ import functools
 np.random.seed(0)
 
 class NBody:
-    def __init__(self, N, G=100.0, K=0.1, D=3, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
+    def __init__(self, N, G=100.0, K=0.1, D=3, collision=True, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
+        self.forces = []
+        self.corrective_forces = []
+
+        if G is not None:
+            self.forces.append(forces.Gravity(G))
+
+        if K is not None:
+            self.forces.append(forces.Drag(K))
+
+        if collision:
+            self.corrective_forces.append(forces.Collision())
+            
         self.D = D
-        self.G = G
-        self.K = K
         self.lock = lock
         
         self.M = np.array(M).astype(dtype) if M is not None else np.ones(N, dtype=dtype)
@@ -54,11 +64,15 @@ class NBody:
         r = ssdist.pdist(P)
 
         F = np.zeros_like(V)
-        F += forces.Gravity(self.G).compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
-        F += forces.Drag(self.K).compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+        Poff = np.zeros_like(P)
+        
+        for f in self.forces:
+            F += f.compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
 
-        Fcoll, Poff = forces.Collision().compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
-        F += Fcoll
+        for f in self.corrective_forces:
+            Fcf, dPcf = f.compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+            F += Fcf
+            Poff += dPcf
 
         dV = dt * F / self.M[:,np.newaxis]
         dP = (V+dV) * dt + 0.5 * dV * dt * dt + Poff

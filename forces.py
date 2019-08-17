@@ -2,7 +2,7 @@ import numpy as np
 from numpy.core.umath_tests import inner1d
 
 class Force: pass
-class CorrectingForce: pass
+class CorrectiveForce: pass
 
 class Gravity(Force):
     def __init__(self, G):
@@ -31,7 +31,7 @@ class Drag(Force):
             buf_items.fill(0)
             return buf_items
 
-class Collision(CorrectingForce):
+class Collision(CorrectiveForce):
     def compute(self, dt, V, P, M, R, dP, r, tidx, lidx, buf_pairs, buf_items):
         F = buf_items
         F.fill(0)
