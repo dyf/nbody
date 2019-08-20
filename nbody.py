@@ -2,12 +2,12 @@ import numpy as np
 import scipy.spatial.distance as ssdist
 import forces
 from integrators import Integrator
-import functools
+import functools as ft
 
 np.random.seed(0)
 
 class NBody:
-    def __init__(self, N, G=100.0, K=0.1, D=3, collision=True, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
+    def __init__(self, N, G=100.0, K=0.1, D=3, SK=1.0, SK_dist=0.1, collision=True, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
         self.forces = []
         self.corrective_forces = []
 
@@ -16,6 +16,9 @@ class NBody:
 
         if K is not None:
             self.forces.append(forces.Drag(K))
+
+        if SK is not None:
+            self.forces.append(forces.Separation(k=SK, dist=SK_dist))
 
         if collision:
             self.corrective_forces.append(forces.Collision())
@@ -35,7 +38,7 @@ class NBody:
         self.lidx = np.tril_indices(N, k=-1)
 
 
-        self.integrator = Integrator.new(integrator, functools.partial(self.compute_derivatives))
+        self.integrator = Integrator.new(integrator, ft.partial(self.compute_derivatives))
 
         self.fixed = {}
 
@@ -43,6 +46,9 @@ class NBody:
         self.fixed[i] = self.P[i]
         
     def step(self, dt):
+        if dt == 0.0:
+            return
+        
         dV, dP = self.integrator.step(dt, self.V, self.P)
 
         if self.lock:
@@ -58,19 +64,16 @@ class NBody:
             self.lock.release()
 
     def compute_derivatives(self, dt, V, P):
-        N = len(self.M)
-
-        dP = (P[:, np.newaxis] - P[np.newaxis,:])[self.tidx]
-        r = ssdist.pdist(P)
-
+        nbs = NBodyState(self, V=V, P=P)
+        
         F = np.zeros_like(V)
         Poff = np.zeros_like(P)
         
         for f in self.forces:
-            F += f.compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+            F += f.compute(nbs, dt, buf_pairs=self.buf_pairs, buf_items=self.buf_items)
 
         for f in self.corrective_forces:
-            Fcf, dPcf = f.compute(dt, V, P, self.M, self.R, dP, r, self.tidx, self.lidx, self.buf_pairs, self.buf_items)
+            Fcf, dPcf = f.compute(nbs, dt, buf_pairs=self.buf_pairs, buf_items=self.buf_items)
             F += Fcf
             Poff += dPcf
 
@@ -98,6 +101,54 @@ def save(nb, file_name):
     
     plt.savefig(file_name)
     plt.close()
+
+class NBodyState:
+    def __init__(self, nb, P=None, V=None):
+        self.M = nb.M
+        self.R = nb.R
+        self.P = P if P is not None else nb.P
+        self.V = V if V is not None else nb.V
+
+        self.tidx = nb.tidx
+        self.lidx = nb.lidx
+
+    @property
+    @ft.lru_cache(None)
+    def p1p2(self):
+        return (self.P[:, np.newaxis] - self.P[np.newaxis,:])
+    
+    @property
+    @ft.lru_cache(None)
+    def p1p2_dense(self):
+        return self.p1p2[self.tidx]
+
+    @property
+    @ft.lru_cache(None)
+    def unit_p1p2_dense(self):
+        return self.p1p2_dense / self.pdist_dense[:, np.newaxis]
+    
+    @property
+    @ft.lru_cache(None)
+    def pdist_dense(self):
+        r = ssdist.pdist(self.P)
+        r[r==0] = 1
+        return r
+
+    @property
+    @ft.lru_cache(None)
+    def pdist2_dense(self):
+        return np.square(self.pdist_dense)
+
+    @property
+    @ft.lru_cache(None)
+    def r1r2(self):
+        return (self.R[:, np.newaxis] + self.R[np.newaxis, :])[self.tidx]
+        
+    @property
+    @ft.lru_cache(None)
+    def overlapping_pairs(self):
+        idx = np.where(self.pdist_dense <= self.r1r2)[0]
+        return idx, self.tidx[0][idx], self.tidx[1][idx]
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
@@ -112,13 +163,16 @@ def main():
                #P = [[1,.5],[0,.5]],
                #V = [[0,.1],[0,-.1]]
     )
-    print(nb.P)
-    for i in range(10):
-        #save(nb, 'test%02d.jpg' % i)
-        #print("P")
 
+    nbs = NBodyState(nb)
+    print("P", nbs.P)
+    print("p1p2", nbs.p1p2)
+    print("unit_p1p2", nbs.unit_p1p2_dense)
+    
+    for i in range(1000):
+        #save(nb, 'test%02d.jpg' % i)
         nb.step(.01)
-        print(nb.P)
+        #print(nb.P)
 
 if __name__ == "__main__": main()
 

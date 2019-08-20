@@ -4,7 +4,7 @@ from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
 
-N = 2
+N = 200
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
@@ -19,12 +19,13 @@ def init_nb_bounce():
         N,
         integrator=INTEGRATOR,
         D=D,
-        P=[[0,0,.5],
-           [1,1,.5]],
+        G=100.0,
+        P=[[0,0,0],
+           [1,0,0]],
         R=[.1,.1],
-        V=[[10,0,0],
-           [0,-10,0]],
-        M=[3,1],
+        V=[[0,0,0],
+           [0,0,0]],
+        M=[100,100],
         K=0,
         lock=LOCK,
         dtype=DTYPE
@@ -37,13 +38,17 @@ def init_nb_rand():
         N,
         integrator=INTEGRATOR,
         D=D,
-        K=K,
+        K=None,
         R=np.ones(N, dtype=DTYPE)*.05,
+        G=100.0,
+        SK=None,#100.0,
+        SK_dist=None,#1.0,
+        collision=True,
         lock=LOCK,
         dtype=DTYPE
     )
-    nb.M[0] = 1000.0
-    nb.fix(0)
+#    nb.M[0] = 1000.0
+#    nb.fix(0)
 
     return nb
 
@@ -127,6 +132,11 @@ def toggle():
     return jsonify({'msg':'success'})
 
 if __name__ == "__main__":
+    import logging
+    app.logger.disabled = True
+    log = logging.getLogger('werkzeug')
+    log.disabled = True
+
     Q = Queue()
     PROC = Process(target=run_nbody, args=(Q,))
     PROC.start()
