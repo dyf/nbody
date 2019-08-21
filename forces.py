@@ -52,7 +52,7 @@ class Collision(CorrectiveForce):
             #dPh = dP[hits] / r[hits, np.newaxis]
 
             # half of the overlapping distance, used for undoing overlap
-            hdr = 0.5 * (nbs.pdist_dense[hits] - nbs.r1r2[hits])
+            hdr = 0.5 * (nbs.pdist_dense[hits] - nbs.r1r2_dense[hits])
 
             # position correction vectors
             dPcorr[b1_idx,:] = -dPh * hdr[:,np.newaxis]

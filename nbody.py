@@ -102,6 +102,9 @@ def save(nb, file_name):
     plt.savefig(file_name)
     plt.close()
 
+def cached_property(fn):
+    return property(ft.lru_cache(None)(fn))
+
 class NBodyState:
     def __init__(self, nb, P=None, V=None):
         self.M = nb.M
@@ -112,42 +115,39 @@ class NBodyState:
         self.tidx = nb.tidx
         self.lidx = nb.lidx
 
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def p1p2(self):
-        return (self.P[:, np.newaxis] - self.P[np.newaxis,:])
+        return self.P[:, np.newaxis] - self.P[np.newaxis,:]
     
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def p1p2_dense(self):
         return self.p1p2[self.tidx]
 
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def unit_p1p2_dense(self):
         return self.p1p2_dense / self.pdist_dense[:, np.newaxis]
     
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def pdist_dense(self):
         r = ssdist.pdist(self.P)
         r[r==0] = 1
         return r
 
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def pdist2_dense(self):
         return np.square(self.pdist_dense)
 
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def r1r2(self):
-        return (self.R[:, np.newaxis] + self.R[np.newaxis, :])[self.tidx]
+        return self.R[:, np.newaxis] + self.R[np.newaxis, :]
+
+    @cached_property
+    def r1r2_dense(self):
+        return self.r1r2[self.tidx]
         
-    @property
-    @ft.lru_cache(None)
+    @cached_property
     def overlapping_pairs(self):
-        idx = np.where(self.pdist_dense <= self.r1r2)[0]
+        idx = np.where(self.pdist_dense <= self.r1r2_dense)[0]
         return idx, self.tidx[0][idx], self.tidx[1][idx]
     
 def main():
