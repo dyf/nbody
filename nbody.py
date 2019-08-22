@@ -57,6 +57,8 @@ class NBody:
         self.V += dV
         self.P += dP
 
+        #print("KE",sum(self.M*(np.linalg.norm(self.V, axis=1)**2)*0.5))
+
         for i,pi in self.fixed.items():
             self.P[i] = pi
 
@@ -106,11 +108,12 @@ def cached_property(fn):
     return property(ft.lru_cache(None)(fn))
 
 class NBodyState:
-    def __init__(self, nb, P=None, V=None):
+    def __init__(self, nb, P=None, V=None, eps=0.001):
         self.M = nb.M
         self.R = nb.R
         self.P = P if P is not None else nb.P
         self.V = V if V is not None else nb.V
+        self.eps = eps
 
         self.tidx = nb.tidx
         self.lidx = nb.lidx
@@ -129,13 +132,21 @@ class NBodyState:
     
     @cached_property
     def pdist_dense(self):
-        r = ssdist.pdist(self.P)
-        r[r==0] = 1
-        return r
+        return ssdist.pdist(self.P)
 
     @cached_property
     def pdist2_dense(self):
         return np.square(self.pdist_dense)
+
+    @cached_property
+    def pdist2i_dense(self):
+        p2 = self.pdist2_dense
+        p2i = np.ones_like(p2) / self.eps
+
+        far_enough = p2 > self.eps
+        p2i[far_enough] = 1.0 / p2[far_enough]
+
+        return p2i
 
     @cached_property
     def r1r2(self):
@@ -154,6 +165,8 @@ def main():
     np.set_printoptions(precision=5, suppress=True)
     nb = NBody(2, integrator='rk2',
                D=2,
+               G=100.0,
+               SK=None,
                K=0,
                M = [1,1],
                P = [[-1,0],[1,0]],
@@ -169,7 +182,7 @@ def main():
     print("p1p2", nbs.p1p2)
     print("unit_p1p2", nbs.unit_p1p2_dense)
     
-    for i in range(1000):
+    for i in range(3):
         #save(nb, 'test%02d.jpg' % i)
         nb.step(.01)
         #print(nb.P)

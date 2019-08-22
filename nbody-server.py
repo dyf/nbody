@@ -8,7 +8,7 @@ N = 200
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
-INTEGRATOR='rk4'
+INTEGRATOR='euler'
 
 LOCK = Lock()
 DTYPE = np.float32
@@ -26,7 +26,9 @@ def init_nb_bounce():
         V=[[0,0,0],
            [0,0,0]],
         M=[100,100],
-        K=0,
+        K=None,
+        collision=True,
+        SK=None,
         lock=LOCK,
         dtype=DTYPE
     )
