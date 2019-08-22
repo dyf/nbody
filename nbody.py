@@ -1,28 +1,17 @@
 import numpy as np
 import scipy.spatial.distance as ssdist
-import forces
+import rules as nbr
 from integrators import Integrator
 import functools as ft
 
 np.random.seed(0)
 
 class NBody:
-    def __init__(self, N, G=100.0, K=0.1, D=3, SK=1.0, SK_dist=0.1, collision=True, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
-        self.forces = []
-        self.corrective_forces = []
+    def __init__(self, N, D, rules=None, M=None, P=None, V=None, R=None, integrator='euler', dtype=np.float32, lock=None):
+        rules = [] if rules is None else rules
+        self.forces = [ r for r in rules if isinstance(r, nbr.Force) ] 
+        self.corrective_forces = [ r for r in rules if isinstance(r, nbr.CorrectiveForce) ] 
 
-        if G is not None:
-            self.forces.append(forces.Gravity(G))
-
-        if K is not None:
-            self.forces.append(forces.Drag(K))
-
-        if SK is not None:
-            self.forces.append(forces.Separation(k=SK, dist=SK_dist))
-
-        if collision:
-            self.corrective_forces.append(forces.Collision())
-            
         self.D = D
         self.lock = lock
         
@@ -165,9 +154,10 @@ def main():
     np.set_printoptions(precision=5, suppress=True)
     nb = NBody(2, integrator='rk2',
                D=2,
-               G=100.0,
-               SK=None,
-               K=0,
+               rules=[
+                   nbr.Gravity(100.0),
+                   nbr.Drag(0.0)
+               ],
                M = [1,1],
                P = [[-1,0],[1,0]],
                R = [ 0.5, 0.5],

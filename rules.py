@@ -1,8 +1,9 @@
 import numpy as np
 from numpy.core.umath_tests import inner1d
 
-class Force: pass
-class CorrectiveForce: pass
+class Rule: pass
+class Force(Rule): pass
+class CorrectiveForce(Rule): pass
 
 class Gravity(Force):
     def __init__(self, G):

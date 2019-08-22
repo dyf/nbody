@@ -3,6 +3,7 @@ from nbody import NBody
 from multiprocessing import Process, RawArray, Lock, Queue
 import numpy as np
 import queue
+import rules as nbr
 
 N = 200
 D = 3
@@ -16,19 +17,19 @@ K = 0.7
 
 def init_nb_bounce():
     nb = NBody(
-        N,
-        integrator=INTEGRATOR,
+        N=N,
         D=D,
-        G=100.0,
+        integrator=INTEGRATOR,
+        rules=[
+            nbr.Gravity(100.0),
+            nbr.Collision()
+        ],
         P=[[0,0,0],
            [1,0,0]],
         R=[.1,.1],
         V=[[0,0,0],
            [0,0,0]],
         M=[100,100],
-        K=None,
-        collision=True,
-        SK=None,
         lock=LOCK,
         dtype=DTYPE
     )
@@ -37,15 +38,14 @@ def init_nb_bounce():
 
 def init_nb_rand():
     nb = NBody(
-        N,
-        integrator=INTEGRATOR,
+        N=N,
         D=D,
-        K=None,
+        integrator=INTEGRATOR,
         R=np.ones(N, dtype=DTYPE)*.05,
-        G=100.0,
-        SK=None,#100.0,
-        SK_dist=None,#1.0,
-        collision=True,
+        rules=[
+            nbr.Gravity(100.0),
+            nbr.Collision(),
+        ],
         lock=LOCK,
         dtype=DTYPE
     )
