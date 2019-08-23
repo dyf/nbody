@@ -150,6 +150,7 @@ class NBodyState:
         idx = np.where(self.pdist_dense <= self.r1r2_dense)[0]
         return idx, self.tidx[0][idx], self.tidx[1][idx]
 
+    @ft.lru_cache(None)
     def near_pairs(self, dist):
         idx = np.where(self.pdist_dense < dist)[0]
         return idx, self.tidx[0][idx], self.tidx[1][idx]

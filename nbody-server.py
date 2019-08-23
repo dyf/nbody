@@ -22,7 +22,8 @@ def init_nb_bounce():
         integrator=INTEGRATOR,
         rules=[
             #nbr.Gravity(100.0),
-            nbr.Avoidance(2.0,100.0),
+            #nbr.Avoidance(2.0,100.0),
+            nbr.Cohesion(2.0,100.0),
             nbr.Collision()
         ],
         P=[[0,0,0],

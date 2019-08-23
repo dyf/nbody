@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.core.umath_tests import inner1d
+from collections import Counter
 
 class Rule: pass
 class Force(Rule): pass
@@ -105,3 +106,29 @@ class Avoidance(Force):
             F[b2_idx,b1_idx,:] = dPv
 
         return F.sum(axis=0)
+
+class Cohesion(Force):
+    def __init__(self, dist, k):
+        self.dist = dist
+        self.k = k
+
+    def compute(self, nbs, dt, buf_items, buf_pairs):
+        C = buf_items
+        F = buf_pairs
+        C.fill(0)
+        F.fill(0)
+
+        near, b1_idx, b2_idx = nbs.near_pairs(self.dist)
+
+        if len(near) > 0:
+            # centroids
+            cts = Counter(np.append(b1_idx,b2_idx))
+            for i1,i2 in zip(b1_idx, b2_idx):
+                C[i1] += nbs.P[i2] / cts[i1]
+                C[i2] += nbs.P[i1] / cts[i2]
+
+            idx = np.array(list(cts.keys()))
+            V = C[idx] - nbs.P[idx]
+            V /= np.linalg.norm(V)
+
+        return V * self.k
