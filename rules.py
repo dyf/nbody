@@ -11,19 +11,15 @@ class Gravity(Force):
         
     def compute(self, nbs, dt, buf_items, buf_pairs):
         r2i = nbs.pdist2i_dense[:,np.newaxis]
-        #r2 = nbs.pdist2_dense[:,np.newaxis]
-        #r2[r2<0.001]=0.001
 
         m1m2 = np.outer(nbs.M, nbs.M)[nbs.tidx][:,np.newaxis]
         v = nbs.unit_p1p2_dense
 
         Fg = self.G * m1m2 * r2i * v
 
-        #print(np.allclose((self.G * m1m2 / r2 * v), (self.G * m1m2 * r2i * v)))
-
         buf_pairs[nbs.tidx] = Fg
-        buf_pairs[nbs.lidx] = -np.swapaxes(buf_pairs,0,1)[nbs.lidx]
-        
+        buf_pairs[nbs.lidx] = -Fg
+
         return buf_pairs.sum(axis=0)
 
 class Drag(Force):
@@ -90,28 +86,22 @@ class Collision(CorrectiveForce):
 
         return F, dPcorr
 
-class Separation(Force):
+class Avoidance(Force):
     def __init__(self, dist, k):
         self.dist = dist
         self.k = k
 
-    def compute(self, nbs, dt, buf_pairs, buf_items):
-        F = buf_items
+    def compute(self, nbs, dt, buf_items, buf_pairs):
+        F = buf_pairs
         F.fill(0)
 
-        # if they've collided, bouncing will deal with that
-        r1r2 = (R[:, np.newaxis] + R[np.newaxis, :])[tidx]
-        near = np.where((r < self.dist) & (r>r1r2))[0]
+        near, b1_idx, b2_idx = nbs.near_pairs(self.dist)
 
         if len(near) > 0:
-            # upper-triangle indices of near pairs
-            b1_idx = tidx[0][near]
-            b2_idx = tidx[1][near]
-
             # avoidance vector
-            dPv = dP[near] / np.power(r[near, np.newaxis], 3) * self.k
+            dPv = nbs.unit_p1p2_dense[near] / nbs.pdist2_dense[near,np.newaxis] * self.k
 
-            F[b1_idx,:] = dPv
-            F[b2_idx,:] = -dPv
+            F[b1_idx,b2_idx,:] = -dPv
+            F[b2_idx,b1_idx,:] = dPv
 
-        return F
+        return F.sum(axis=0)

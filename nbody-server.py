@@ -5,7 +5,7 @@ import numpy as np
 import queue
 import rules as nbr
 
-N = 200
+N = 4
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
@@ -21,15 +21,20 @@ def init_nb_bounce():
         D=D,
         integrator=INTEGRATOR,
         rules=[
-            nbr.Gravity(100.0),
+            #nbr.Gravity(100.0),
+            nbr.Avoidance(2.0,100.0),
             nbr.Collision()
         ],
         P=[[0,0,0],
-           [1,0,0]],
-        R=[.1,.1],
+           [1,0,0],
+           [1,1,0],
+           [0,1,0]],
+        R=[.1,.1,.1,.1],
         V=[[0,0,0],
+           [0,0,0],
+           [0,0,0],
            [0,0,0]],
-        M=[100,100],
+        M=[100,100,100,100],
         lock=LOCK,
         dtype=DTYPE
     )
@@ -55,8 +60,8 @@ def init_nb_rand():
     return nb
 
 def init_sim():
-    nb = init_nb_rand()
-    #nb = init_nb_bounce()
+    #nb = init_nb_rand()
+    nb = init_nb_bounce()
     
     # use the shared array
     #p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)

@@ -24,7 +24,7 @@ class NBody:
         self.buf_items = np.zeros((N,D), dtype=dtype)
 
         self.tidx = np.triu_indices(N, k=1)
-        self.lidx = np.tril_indices(N, k=-1)
+        self.lidx = ( self.tidx[1], self.tidx[0] )
 
 
         self.integrator = Integrator.new(integrator, ft.partial(self.compute_derivatives))
@@ -148,6 +148,10 @@ class NBodyState:
     @cached_property
     def overlapping_pairs(self):
         idx = np.where(self.pdist_dense <= self.r1r2_dense)[0]
+        return idx, self.tidx[0][idx], self.tidx[1][idx]
+
+    def near_pairs(self, dist):
+        idx = np.where(self.pdist_dense < dist)[0]
         return idx, self.tidx[0][idx], self.tidx[1][idx]
     
 def main():
