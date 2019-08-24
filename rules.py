@@ -114,21 +114,49 @@ class Cohesion(Force):
 
     def compute(self, nbs, dt, buf_items, buf_pairs):
         C = buf_items
-        F = buf_pairs
         C.fill(0)
-        F.fill(0)
 
         near, b1_idx, b2_idx = nbs.near_pairs(self.dist)
 
         if len(near) > 0:
             # centroids
-            cts = Counter(np.append(b1_idx,b2_idx))
-            for i1,i2 in zip(b1_idx, b2_idx):
-                C[i1] += nbs.P[i2] / cts[i1]
-                C[i2] += nbs.P[i1] / cts[i2]
+            cidx, ccts = np.unique(np.append(b1_idx,b2_idx), return_counts=True)
 
-            idx = np.array(list(cts.keys()))
-            V = C[idx] - nbs.P[idx]
-            V /= np.linalg.norm(V)
+            np.add.at(C, b1_idx, nbs.P[b2_idx])
+            np.add.at(C, b2_idx, nbs.P[b1_idx])
 
-        return V * self.k
+            C[cidx] /= ccts[:,np.newaxis]
+
+            V = C[cidx] - nbs.P[cidx]
+            V = self.k * V / np.linalg.norm(V, axis=1)[:,np.newaxis]
+
+            C[cidx] = V
+
+        return C
+
+class Alignment(Force):
+    def __init__(self, dist, k):
+        self.dist = dist
+        self.k = k
+
+    def compute(self, nbs, dt, buf_items, buf_pairs):
+        VC = buf_items
+        VC.fill(0)
+
+        near, b1_idx, b2_idx = nbs.near_pairs(self.dist)
+
+        if len(near) > 0:
+            # average velocity
+            cidx = np.unique(np.append(b1_idx,b2_idx))
+
+            np.add.at(VC, b1_idx, nbs.V[b2_idx])
+            np.add.at(VC, b2_idx, nbs.V[b1_idx])
+
+            vlen = np.linalg.norm(VC[cidx], axis=1)
+            vlen[vlen==0.0] = 1.0
+            
+            VC[cidx] = self.k * VC[cidx] / vlen[:,np.newaxis]
+            
+
+        return VC
+    

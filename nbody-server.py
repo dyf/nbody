@@ -22,8 +22,9 @@ def init_nb_bounce():
         integrator=INTEGRATOR,
         rules=[
             #nbr.Gravity(100.0),
-            #nbr.Avoidance(2.0,100.0),
-            nbr.Cohesion(2.0,100.0),
+            nbr.Avoidance(1.1,100.0),
+            nbr.Cohesion(10.0,1000.0),
+            nbr.Alignment(1.1,100.0),
             nbr.Collision()
         ],
         P=[[0,0,0],
@@ -31,10 +32,10 @@ def init_nb_bounce():
            [1,1,0],
            [0,1,0]],
         R=[.1,.1,.1,.1],
-        V=[[0,0,0],
-           [0,0,0],
-           [0,0,0],
-           [0,0,0]],
+        V=[[0,1,0],
+           [0,-1,0],
+           [0,-1,0],
+           [0,1,0]],
         M=[100,100,100,100],
         lock=LOCK,
         dtype=DTYPE
