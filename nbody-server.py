@@ -53,7 +53,8 @@ def init_nb_rand():
             nbr.Avoidance(.5,100.0),
             nbr.Cohesion(.5,10000.0),
             nbr.Alignment(.5,500.0),
-            nbr.SphereBoundary([0.0,0.0,0.0], 3.0, 100.0)
+            nbr.LinearAttractor([0.0,0.0,0.0], 100.0)
+            #nbr.SphereBoundary([0.0,0.0,0.0], 3.0, 100.0)
         ],
         lock=LOCK,
         dtype=DTYPE

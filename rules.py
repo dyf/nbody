@@ -161,6 +161,16 @@ class Alignment(Force):
 
         return VC
 
+class LinearAttractor(Force):
+    def __init__(self, point, k):
+        self.k = k
+        self.point = point
+
+    def compute(self, nbs, dt, buf_items, buf_pairs):
+        rv = self.point - nbs.P
+        return rv * self.k
+    
+    
 class SphereBoundary(Force):
     def __init__(self, point, radius, k):
         self.k = k
