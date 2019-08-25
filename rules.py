@@ -5,6 +5,7 @@ from collections import Counter
 class Rule: pass
 class Force(Rule): pass
 class CorrectiveForce(Rule): pass
+class Director(Rule): pass
 
 class Gravity(Force):
     def __init__(self, G):
@@ -159,4 +160,23 @@ class Alignment(Force):
             
 
         return VC
+
+class SphereBoundary(Force):
+    def __init__(self, point, radius, k):
+        self.k = k
+        self.point = point
+        self.radius = radius
+
+    def compute(self, nbs, dt, buf_items, buf_pairs):
+        F = buf_items
+        F.fill(0)
+
+        rv = self.point - nbs.P
+        d = np.linalg.norm(rv,axis=1)
+
+        outside = d > self.radius
+        if outside.shape[0] > 0:
+            F[outside] = rv[outside] * self.k
+
+        return F
     

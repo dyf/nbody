@@ -53,6 +53,7 @@ function update_bodies(callback) {
                 object.position.set((p[d*i]   - 0.5)*100,
                                     (p[d*i+1] - 0.5)*100,
                                     (p[d*i+2] - 0.5)*100);
+                object.updateMatrix()
             }
         } else {
             console.log("no bodies...");

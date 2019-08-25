@@ -5,11 +5,11 @@ import numpy as np
 import queue
 import rules as nbr
 
-N = 4
+N = 100
 D = 3
 P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
 R = RawArray(np.ctypeslib.ctypes.c_float, N)
-INTEGRATOR='euler'
+INTEGRATOR='rk4'
 
 LOCK = Lock()
 DTYPE = np.float32
@@ -48,10 +48,12 @@ def init_nb_rand():
         N=N,
         D=D,
         integrator=INTEGRATOR,
-        R=np.ones(N, dtype=DTYPE)*.05,
+        R=np.random.random(N).astype(DTYPE)*.05+.02,
         rules=[
-            nbr.Gravity(100.0),
-            nbr.Collision(),
+            nbr.Avoidance(.5,100.0),
+            nbr.Cohesion(.5,10000.0),
+            nbr.Alignment(.5,500.0),
+            nbr.SphereBoundary([0.0,0.0,0.0], 3.0, 100.0)
         ],
         lock=LOCK,
         dtype=DTYPE
@@ -62,8 +64,8 @@ def init_nb_rand():
     return nb
 
 def init_sim():
-    #nb = init_nb_rand()
-    nb = init_nb_bounce()
+    nb = init_nb_rand()
+    #nb = init_nb_bounce()
     
     # use the shared array
     #p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
