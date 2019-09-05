@@ -1,14 +1,14 @@
 from flask import Flask, jsonify, render_template, url_for, request
 from nbody import NBody
-from multiprocessing import Process, RawArray, Lock, Queue
+from multiprocessing import Process, Array, Lock, Queue
 import numpy as np
 import queue
 import rules as nbr
 
 N = 100
 D = 3
-P = RawArray(np.ctypeslib.ctypes.c_float, N*D)
-R = RawArray(np.ctypeslib.ctypes.c_float, N)
+P = Array(np.ctypeslib.ctypes.c_float, N*D, lock=False)
+R = Array(np.ctypeslib.ctypes.c_float, N, lock=False)
 INTEGRATOR='rk4'
 
 LOCK = Lock()
@@ -64,25 +64,24 @@ def init_nb_rand():
 
     return nb
 
-def init_sim():
+def init_sim(parr, rarr):
     nb = init_nb_rand()
     #nb = init_nb_bounce()
     
-    # use the shared array
-    #p = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
-    p = np.frombuffer(P, dtype=DTYPE).reshape(nb.P.shape[0], nb.P.shape[1])
-    r = np.frombuffer(R, dtype=DTYPE).reshape(nb.R.shape[0])
-    np.copyto(p, nb.P)
-    np.copyto(r, nb.R)
+    # use the shared array    
+    p = np.frombuffer(parr, dtype=DTYPE).reshape(nb.P.shape[0], nb.P.shape[1])    
+    r = np.frombuffer(rarr, dtype=DTYPE).reshape(nb.R.shape[0])
+    p[:] = nb.P[:]
+    r[:] = nb.R[:]
     nb.P = p
     nb.R = r
 
     return nb
     
-def run_nbody(q):
+def run_nbody(q, parr, rarr):
     running = False
     
-    nb = init_sim()
+    nb = init_sim(parr, rarr)
     
     dt = None
 
@@ -116,10 +115,10 @@ def index():
 
 @app.route('/bodies')
 def bodies():
-    parr = np.frombuffer(P, dtype=DTYPE).reshape(N,D)
+    parr = np.frombuffer(P, dtype=DTYPE).reshape(N,D)    
     rarr = np.frombuffer(R, dtype=DTYPE).reshape(N)
     return np.array([N,D], dtype=DTYPE).tobytes() + parr.tobytes() + rarr.tobytes()
-
+    
 @app.route('/step')
 def step():
     dt = float(request.args.get('dt'))
@@ -150,7 +149,7 @@ if __name__ == "__main__":
     log.disabled = True
 
     Q = Queue()
-    PROC = Process(target=run_nbody, args=(Q,))
+    PROC = Process(target=run_nbody, args=(Q,P,R))
     PROC.start()
 
     app.run()#threaded=True)
