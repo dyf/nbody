@@ -51,9 +51,9 @@ def init_nb_rand():
         R=np.random.random(N).astype(DTYPE)*.05+.02,
         rules=[
             nbr.Avoidance(.5,100.0),
-            nbr.Cohesion(.5,10000.0),
-            nbr.Alignment(.5,500.0),
-            nbr.LinearAttractor([0.0,0.0,0.0], 100.0)
+            nbr.Cohesion(.5,6000.0),
+            nbr.Alignment(.5,2500.0),
+            nbr.Attractor([0.0,0.0,0.0], 100.0, 'square')
             #nbr.SphereBoundary([0.0,0.0,0.0], 3.0, 100.0)
         ],
         lock=LOCK,

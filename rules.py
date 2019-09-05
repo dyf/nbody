@@ -161,14 +161,28 @@ class Alignment(Force):
 
         return VC
 
-class LinearAttractor(Force):
-    def __init__(self, point, k):
+class Attractor(Force):
+    def __init__(self, point, k, atype='linear'):
         self.k = k
         self.point = point
 
-    def compute(self, nbs, dt, buf_items, buf_pairs):
+        if atype == 'linear':
+            self.compute = self.compute_linear
+        elif atype == 'square':
+            self.compute = self.compute_square
+        elif atype == 'inverse_linear':
+            self.compute = self.compute_inverse_linear
+        elif atype == 'inverse_square':
+            self.compute = self.compute_inverse_square
+
+    def compute_linear(self, nbs, dt, buf_items, buf_pairs):
         rv = self.point - nbs.P
         return rv * self.k
+
+    def compute_square(self, nbs, dt, buf_items, buf_pairs):
+        rv = self.point - nbs.P
+        r = np.linalg.norm(rv, axis=1)[:,np.newaxis]
+        return rv * r * self.k
     
     
 class SphereBoundary(Force):
