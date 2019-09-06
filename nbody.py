@@ -3,6 +3,8 @@ import scipy.spatial.distance as ssdist
 import rules as nbr
 from integrators import Integrator
 import functools as ft
+from memoized_property import memoized_property
+from methodtools import lru_cache
 
 np.random.seed(0)
 
@@ -93,9 +95,6 @@ def save(nb, file_name):
     plt.savefig(file_name)
     plt.close()
 
-def cached_property(fn):
-    return property(ft.lru_cache(None)(fn))
-
 class NBodyState:
     def __init__(self, nb, P=None, V=None, eps=0.001):
         self.M = nb.M
@@ -107,27 +106,28 @@ class NBodyState:
         self.tidx = nb.tidx
         self.lidx = nb.lidx
 
-    @cached_property
+    @memoized_property
     def p1p2(self):
         return self.P[:, np.newaxis] - self.P[np.newaxis,:]
     
-    @cached_property
+    @memoized_property
     def p1p2_dense(self):
         return self.p1p2[self.tidx]
 
-    @cached_property
+    @memoized_property
     def unit_p1p2_dense(self):
         return self.p1p2_dense / self.pdist_dense[:, np.newaxis]
     
-    @cached_property
+    @memoized_property
+
     def pdist_dense(self):
         return ssdist.pdist(self.P)
 
-    @cached_property
+    @memoized_property
     def pdist2_dense(self):
         return np.square(self.pdist_dense)
 
-    @cached_property
+    @memoized_property
     def pdist2i_dense(self):
         p2 = self.pdist2_dense
         p2i = np.ones_like(p2) / self.eps
@@ -137,47 +137,48 @@ class NBodyState:
 
         return p2i
 
-    @cached_property
+    @memoized_property
     def r1r2(self):
         return self.R[:, np.newaxis] + self.R[np.newaxis, :]
 
-    @cached_property
+    @memoized_property
     def r1r2_dense(self):
         return self.r1r2[self.tidx]
         
-    @cached_property
+    @memoized_property
     def overlapping_pairs(self):
         idx = np.where(self.pdist_dense <= self.r1r2_dense)[0]
         return idx, self.tidx[0][idx], self.tidx[1][idx]
 
-    @ft.lru_cache(None)
+    @lru_cache(None)
     def near_pairs(self, dist):
         idx = np.where(self.pdist_dense < dist)[0]
         return idx, self.tidx[0][idx], self.tidx[1][idx]
     
 def main():
     np.set_printoptions(precision=5, suppress=True)
-    nb = NBody(2, integrator='rk2',
-               D=2,
+    nb = NBody(50, integrator='rk2',
+               D=3,
                rules=[
-                   nbr.Gravity(100.0),
-                   nbr.Drag(0.0)
+                   nbr.Avoidance(.5,100.0),
+                   nbr.Cohesion(.5,6000.0),
+                   nbr.Alignment(.5,2500.0),
+                   nbr.Attractor([0.0,0.0,0.0], 100.0, 'square')
+                   #nbr.Gravity(100.0),
+                   #nbr.Drag(0.0)
                ],
-               M = [1,1],
-               P = [[-1,0],[1,0]],
-               R = [ 0.5, 0.5],
-               V = [ [0,0], [0,0] ]
+               #M = [1,1],
+               #P = [[-1,0],[1,0]],
+               #R = [ 0.5, 0.5],
+               #V = [ [0,0], [0,0] ]
                #P = [1,-1]
                #P = [[1,.5],[0,.5]],
                #V = [[0,.1],[0,-.1]]
     )
 
     nbs = NBodyState(nb)
-    print("P", nbs.P)
-    print("p1p2", nbs.p1p2)
-    print("unit_p1p2", nbs.unit_p1p2_dense)
     
-    for i in range(3):
+    for i in range(10000):
         #save(nb, 'test%02d.jpg' % i)
         nb.step(.01)
         #print(nb.P)
