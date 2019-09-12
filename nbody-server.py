@@ -4,77 +4,67 @@ from multiprocessing import Process, Array, Lock, Queue
 import numpy as np
 import queue
 import rules as nbr
+import argparse
 
-N = 100
-D = 3
-P = Array(np.ctypeslib.ctypes.c_float, N*D, lock=False)
-R = Array(np.ctypeslib.ctypes.c_float, N, lock=False)
-INTEGRATOR='rk4'
-
-LOCK = Lock()
-DTYPE = np.float32
-K = 0.7
-
-def init_nb_bounce():
-    nb = NBody(
-        N=N,
-        D=D,
-        integrator=INTEGRATOR,
-        rules=[
-            #nbr.Gravity(100.0),
-            nbr.Avoidance(1.1,100.0),
-            nbr.Cohesion(10.0,1000.0),
-            nbr.Alignment(1.1,100.0),
-            nbr.Collision()
+SIMS = {
+    'bounce': {
+        'N': 4,
+        'D': 3,  
+        'rules': [
+            { 'rtype': 'avoidance', 'params': { 'dist': 1.1, 'k': 100.0 } },
+            { 'rtype': 'cohesion', 'params': { 'dist': 10.0, 'k': 1000.0 } },
+            { 'rtype': 'alignment', 'params': { 'dist': 1.1, 'k': 100.0 } },
+            { 'rtype': 'collision' }
         ],
-        P=[[0,0,0],
-           [1,0,0],
-           [1,1,0],
-           [0,1,0]],
-        R=[.1,.1,.1,.1],
-        V=[[0,1,0],
-           [0,-1,0],
-           [0,-1,0],
-           [0,1,0]],
-        M=[100,100,100,100],
-        lock=LOCK,
-        dtype=DTYPE
-    )
-
-    return nb
-
-def init_nb_rand():
-    nb = NBody(
-        N=N,
-        D=D,
-        integrator=INTEGRATOR,
-        R=np.random.random(N).astype(DTYPE)*.05+.02,
-        rules=[
-            nbr.Avoidance(.5,100.0),
-            nbr.Cohesion(.5,6000.0),
-            nbr.Alignment(.5,2500.0),
-            nbr.Attractor([0.0,0.0,0.0], 100.0, 'square')
-            #nbr.SphereBoundary([0.0,0.0,0.0], 3.0, 100.0)
+        'P': [[0,0,0],
+              [1,0,0],
+              [1,1,0],
+              [0,1,0]],
+        'R': [.1,.1,.1,.1],
+        'V': [[0,1,0],
+              [0,-1,0],
+              [0,-1,0],
+              [0,1,0]],
+        'M': [100,100,100,100]
+    },
+    'rand': {
+        'N': 100,
+        'D': 3,  
+        'rules': [
+            { 'rtype': 'avoidance', 'params': { 'dist': 0.5, 'k': 100.0 } },
+            { 'rtype': 'cohesion', 'params': { 'dist': 0.5, 'k': 16000.0 } },
+            { 'rtype': 'alignment', 'params': { 'dist': 0.5, 'k': 2500.0 } },            
+            { 'rtype': 'attractor', 'params': { 'point': [0.0,0.0,0.0], 'k': 100.0, 'atype': 'square' } }
         ],
-        lock=LOCK,
-        dtype=DTYPE
-    )
-#    nb.M[0] = 1000.0
-#    nb.fix(0)
+        'R': np.random.random(100).astype(np.float32)*.05+.02
+    }
+}
 
-    return nb
+SIM = {
+    'dtype': np.float32,
+    'integrator': 'rk4',
+    'lock': Lock()
+}
 
-def init_sim(parr, rarr):
-    nb = init_nb_rand()
-    #nb = init_nb_bounce()
+SIM.update(SIMS['rand'])
+
+# TODO generalize for DTYPE
+P = Array(np.ctypeslib.ctypes.c_float, SIM['N']*SIM['D'], lock=False)
+R = Array(np.ctypeslib.ctypes.c_float, SIM['N'], lock=False)
+
+def init_sim(parr, rarr):    
+    SIM['rules'] = [ nbr.Rule.from_dict(r['rtype'], r['params']) for r in SIM['rules'] ]
+    nb = NBody(**SIM)
     
     # use the shared array    
-    p = np.frombuffer(parr, dtype=DTYPE).reshape(nb.P.shape[0], nb.P.shape[1])    
-    r = np.frombuffer(rarr, dtype=DTYPE).reshape(nb.R.shape[0])
+    p = np.frombuffer(parr, dtype=SIM['dtype']).reshape(nb.P.shape[0], nb.P.shape[1])    
+    r = np.frombuffer(rarr, dtype=SIM['dtype']).reshape(nb.R.shape[0])
     p[:] = nb.P[:]
     r[:] = nb.R[:]
     nb.P = p
     nb.R = r
+
+
 
     return nb
     
@@ -103,7 +93,7 @@ def run_nbody(q, parr, rarr):
         elif command == "set":
             dt = cmd_dt
         elif command == "reset":
-            nb = init_sim()
+            nb = init_sim(parr, rarr)
             running = False
             
     
@@ -114,10 +104,10 @@ def index():
     return render_template("index.html")
 
 @app.route('/bodies')
-def bodies():
-    parr = np.frombuffer(P, dtype=DTYPE).reshape(N,D)    
-    rarr = np.frombuffer(R, dtype=DTYPE).reshape(N)
-    return np.array([N,D], dtype=DTYPE).tobytes() + parr.tobytes() + rarr.tobytes()
+def bodies():    
+    parr = np.frombuffer(P, dtype=SIM['dtype']).reshape(SIM['N'],SIM['D'])    
+    rarr = np.frombuffer(R, dtype=SIM['dtype']).reshape(SIM['N'])
+    return np.array([SIM['N'],SIM['D']], dtype=SIM['dtype']).tobytes() + parr.tobytes() + rarr.tobytes()
     
 @app.route('/step')
 def step():
@@ -143,10 +133,15 @@ def toggle():
     return jsonify({'msg':'success'})
 
 if __name__ == "__main__":
-    import logging
-    app.logger.disabled = True
-    log = logging.getLogger('werkzeug')
-    log.disabled = True
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--logging', action='store_true')
+    args = parser.parse_args()
+
+    if not args.logging:
+        import logging
+        app.logger.disabled = True
+        log = logging.getLogger('werkzeug')
+        log.disabled = True
 
     Q = Queue()
     PROC = Process(target=run_nbody, args=(Q,P,R))

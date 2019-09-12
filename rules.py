@@ -2,10 +2,25 @@ import numpy as np
 from numpy.core.umath_tests import inner1d
 from collections import Counter
 
-class Rule: pass
+class Rule: 
+    @staticmethod
+    def from_dict(rtype, params):
+        c = [ Rule ]
+        o = []
+
+        while len(c):
+            cls = c.pop()
+            c += cls.__subclasses__()
+            o.append(cls)
+        
+        for cls in o:
+            if cls.__name__.lower() == rtype:
+                return cls(**params)
+                
+        raise NotImplementedError(f"Unknown class: {rtype}")
+
 class Force(Rule): pass
 class CorrectiveForce(Rule): pass
-class Director(Rule): pass
 
 class Gravity(Force):
     def __init__(self, G):
