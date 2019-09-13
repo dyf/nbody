@@ -5,55 +5,14 @@ import numpy as np
 import queue
 import rules as nbr
 import argparse
+from simlib import simlib
 
-SIMS = {
-    'bounce': {
-        'N': 4,
-        'D': 3,  
-        'rules': [
-            { 'rtype': 'avoidance', 'params': { 'dist': 1.1, 'k': 100.0 } },
-            { 'rtype': 'cohesion', 'params': { 'dist': 10.0, 'k': 1000.0 } },
-            { 'rtype': 'alignment', 'params': { 'dist': 1.1, 'k': 100.0 } },
-            { 'rtype': 'collision' }
-        ],
-        'P': [[0,0,0],
-              [1,0,0],
-              [1,1,0],
-              [0,1,0]],
-        'R': [.1,.1,.1,.1],
-        'V': [[0,1,0],
-              [0,-1,0],
-              [0,-1,0],
-              [0,1,0]],
-        'M': [100,100,100,100]
-    },
-    'rand': {
-        'N': 100,
-        'D': 3,  
-        'rules': [
-            { 'rtype': 'avoidance', 'params': { 'dist': 0.5, 'k': 100.0 } },
-            { 'rtype': 'cohesion', 'params': { 'dist': 0.5, 'k': 16000.0 } },
-            { 'rtype': 'alignment', 'params': { 'dist': 0.5, 'k': 2500.0 } },            
-            { 'rtype': 'attractor', 'params': { 'point': [0.0,0.0,0.0], 'k': 100.0, 'atype': 'square' } }
-        ],
-        'R': np.random.random(100).astype(np.float32)*.05+.02
-    }
-}
-
-SIM = {
-    'dtype': np.float32,
-    'integrator': 'rk4',
-    'lock': Lock()
-}
-
-SIM.update(SIMS['rand'])
-
-# TODO generalize for DTYPE
-P = Array(np.ctypeslib.ctypes.c_float, SIM['N']*SIM['D'], lock=False)
-R = Array(np.ctypeslib.ctypes.c_float, SIM['N'], lock=False)
+SIM = None
+P = None
+R = None
 
 def init_sim(parr, rarr):    
-    SIM['rules'] = [ nbr.Rule.from_dict(r['rtype'], r['params']) for r in SIM['rules'] ]
+    SIM['rules'] = [ nbr.Rule.from_dict(r['rtype'], r.get('params',{})) for r in SIM['rules'] ]
     nb = NBody(**SIM)
     
     # use the shared array    
@@ -63,8 +22,6 @@ def init_sim(parr, rarr):
     r[:] = nb.R[:]
     nb.P = p
     nb.R = r
-
-
 
     return nb
     
@@ -135,7 +92,22 @@ def toggle():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--logging', action='store_true')
+    parser.add_argument('sim', nargs='?', default='rand')
     args = parser.parse_args()
+
+    simconfig = simlib[args.sim]
+    
+    SIM = {
+        'dtype': np.float32,
+        'integrator': 'rk4',
+        'lock': Lock()
+    }
+
+    SIM.update(simconfig)
+
+    # TODO generalize for DTYPE
+    P = Array(np.ctypeslib.ctypes.c_float, SIM['N']*SIM['D'], lock=False)
+    R = Array(np.ctypeslib.ctypes.c_float, SIM['N'], lock=False)
 
     if not args.logging:
         import logging
