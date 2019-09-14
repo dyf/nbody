@@ -16,11 +16,11 @@ Q = None
 app = Flask(__name__)
 
 
-def init_sim(parr, rarr):
-    sim = copy.copy(SIM)
-
-    sim['rules'] = [ nbr.Rule.from_dict(r['rtype'], r.get('params',{})) for r in SIM['rules'] ]
-    nb = NBody(**sim)
+def init_sim(parr, rarr, simconfig):
+    global SIM
+    SIM = copy.copy(simconfig)
+    SIM['rules'] = [ nbr.Rule.from_dict(r['rtype'], r.get('params',{})) for r in SIM['rules'] ]
+    nb = NBody(**SIM)
     
     # use the shared array    
     p = np.frombuffer(parr, dtype=SIM['dtype']).reshape(nb.P.shape[0], nb.P.shape[1])    
@@ -32,11 +32,10 @@ def init_sim(parr, rarr):
 
     return nb
     
-def run_nbody(q, parr, rarr):
+def run_nbody(q, parr, rarr, simconfig):    
+    nb = init_sim(parr, rarr, simconfig)    
+    
     running = False
-    
-    nb = init_sim(parr, rarr)
-    
     dt = None
 
     while True:
@@ -57,7 +56,7 @@ def run_nbody(q, parr, rarr):
         elif command == "set":
             dt = cmd_dt
         elif command == "reset":
-            nb = init_sim(parr, rarr)
+            nb = init_sim(parr, rarr, simconfig)
             running = False
 
 @app.route('/')
@@ -65,7 +64,7 @@ def index():
     return render_template("index.html")
 
 @app.route('/bodies')
-def bodies():
+def bodies():    
     parr = np.frombuffer(P, dtype=SIM['dtype']).reshape(SIM['N'],SIM['D'])    
     rarr = np.frombuffer(R, dtype=SIM['dtype']).reshape(SIM['N'])
     return np.array([SIM['N'],SIM['D']], dtype=SIM['dtype']).tobytes() + parr.tobytes() + rarr.tobytes()
@@ -116,12 +115,12 @@ def main():
 
     global SIM, P, R, Q
     
-    SIM = simlib.find(args.sim, integrator=args.integrator, dtype=np_dtype, lock=Lock())
+    SIM = simlib.find(args.sim, integrator=args.integrator, dtype=np_dtype, lock=Lock())    
     P = Array(np_ctype, SIM['N']*SIM['D'], lock=False)
     R = Array(np_ctype, SIM['N'], lock=False)
     
     Q = Queue()
-    PROC = Process(target=run_nbody, args=(Q,P,R))
+    PROC = Process(target=run_nbody, args=(Q,P,R,SIM))
     PROC.start()
 
     app.run()#threaded=True)
