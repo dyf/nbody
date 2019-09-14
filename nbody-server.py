@@ -92,6 +92,12 @@ def toggle():
     Q.put(['toggle', dt])
     return jsonify({'msg':'success'})
 
+def disable_flask_logging():
+    import logging
+    app.logger.disabled = True
+    log = logging.getLogger('werkzeug')
+    log.disabled = True
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--logging', action='store_true')
@@ -100,18 +106,15 @@ if __name__ == "__main__":
     parser.add_argument('sim', nargs='?', default='rand')
     args = parser.parse_args()
 
+    if not args.logging:
+        disable_flask_logging()
+
     np_dtype = np.dtype(args.dtype)
     np_ctype = np.ctypeslib._ctype_from_dtype(np_dtype)
     
     SIM = simlib.find(args.sim, integrator=args.integrator, dtype=np_dtype, lock=Lock())
     P = Array(np_ctype, SIM['N']*SIM['D'], lock=False)
     R = Array(np_ctype, SIM['N'], lock=False)
-
-    if not args.logging:
-        import logging
-        app.logger.disabled = True
-        log = logging.getLogger('werkzeug')
-        log.disabled = True
 
     Q = Queue()
     PROC = Process(target=run_nbody, args=(Q,P,R))
