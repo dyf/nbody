@@ -11,6 +11,7 @@ import copy
 SIM = None
 P = None
 R = None
+Q = None
 
 def init_sim(parr, rarr):
     sim = copy.copy(SIM)
@@ -64,7 +65,7 @@ def index():
     return render_template("index.html")
 
 @app.route('/bodies')
-def bodies():    
+def bodies():
     parr = np.frombuffer(P, dtype=SIM['dtype']).reshape(SIM['N'],SIM['D'])    
     rarr = np.frombuffer(R, dtype=SIM['dtype']).reshape(SIM['N'])
     return np.array([SIM['N'],SIM['D']], dtype=SIM['dtype']).tobytes() + parr.tobytes() + rarr.tobytes()
@@ -97,13 +98,14 @@ def disable_flask_logging():
     app.logger.disabled = True
     log = logging.getLogger('werkzeug')
     log.disabled = True
-    
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--logging', action='store_true')
     parser.add_argument('--integrator', default='rk4')
     parser.add_argument('--dtype', default='float32')
     parser.add_argument('sim', nargs='?', default='rand')
+
     args = parser.parse_args()
 
     if not args.logging:
@@ -111,13 +113,19 @@ if __name__ == "__main__":
 
     np_dtype = np.dtype(args.dtype)
     np_ctype = np.ctypeslib._ctype_from_dtype(np_dtype)
+
+    global SIM, P, R, Q
     
     SIM = simlib.find(args.sim, integrator=args.integrator, dtype=np_dtype, lock=Lock())
     P = Array(np_ctype, SIM['N']*SIM['D'], lock=False)
     R = Array(np_ctype, SIM['N'], lock=False)
-
+    
     Q = Queue()
     PROC = Process(target=run_nbody, args=(Q,P,R))
     PROC.start()
 
     app.run()#threaded=True)
+
+if __name__ == "__main__": main()    
+
+    
