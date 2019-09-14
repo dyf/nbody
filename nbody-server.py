@@ -13,6 +13,9 @@ P = None
 R = None
 Q = None
 
+app = Flask(__name__)
+
+
 def init_sim(parr, rarr):
     sim = copy.copy(SIM)
 
@@ -56,9 +59,6 @@ def run_nbody(q, parr, rarr):
         elif command == "reset":
             nb = init_sim(parr, rarr)
             running = False
-            
-    
-app = Flask(__name__)
 
 @app.route('/')
 def index():
