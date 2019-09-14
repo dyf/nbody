@@ -1,7 +1,7 @@
 import numpy as np
 
-simlib = {
-    'bounce': {
+def bounce():
+    return {
         'N': 4,
         'D': 3,  
         'rules': [
@@ -20,8 +20,10 @@ simlib = {
               [0,-1,0],
               [0,1,0]],
         'M': [100,100,100,100]
-    },
-    'rand': {
+    }
+
+def rand():
+    return {
         'N': 100,
         'D': 3,  
         'rules': [
@@ -30,6 +32,14 @@ simlib = {
             { 'rtype': 'alignment', 'params': { 'dist': 0.5, 'k': 2500.0 } },            
             { 'rtype': 'attractor', 'params': { 'point': [0.0,0.0,0.0], 'k': 100.0, 'atype': 'square' } }
         ],
-        'R': np.random.random(100).astype(np.float32)*.05+.02
+        'R': np.random.random(100)*.05+.02
     }
-}
+
+def find(name, **params):
+    sim = globals()[name]()
+    sim.update(params)
+    return sim
+
+
+
+

@@ -5,15 +5,18 @@ import numpy as np
 import queue
 import rules as nbr
 import argparse
-from simlib import simlib
+import simlib
+import copy
 
 SIM = None
 P = None
 R = None
 
-def init_sim(parr, rarr):    
-    SIM['rules'] = [ nbr.Rule.from_dict(r['rtype'], r.get('params',{})) for r in SIM['rules'] ]
-    nb = NBody(**SIM)
+def init_sim(parr, rarr):
+    sim = copy.copy(SIM)
+
+    sim['rules'] = [ nbr.Rule.from_dict(r['rtype'], r.get('params',{})) for r in SIM['rules'] ]
+    nb = NBody(**sim)
     
     # use the shared array    
     p = np.frombuffer(parr, dtype=SIM['dtype']).reshape(nb.P.shape[0], nb.P.shape[1])    
@@ -92,22 +95,17 @@ def toggle():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--logging', action='store_true')
+    parser.add_argument('--integrator', default='rk4')
+    parser.add_argument('--dtype', default='float32')
     parser.add_argument('sim', nargs='?', default='rand')
     args = parser.parse_args()
 
-    simconfig = simlib[args.sim]
+    np_dtype = np.dtype(args.dtype)
+    np_ctype = np.ctypeslib._ctype_from_dtype(np_dtype)
     
-    SIM = {
-        'dtype': np.float32,
-        'integrator': 'rk4',
-        'lock': Lock()
-    }
-
-    SIM.update(simconfig)
-
-    # TODO generalize for DTYPE
-    P = Array(np.ctypeslib.ctypes.c_float, SIM['N']*SIM['D'], lock=False)
-    R = Array(np.ctypeslib.ctypes.c_float, SIM['N'], lock=False)
+    SIM = simlib.find(args.sim, integrator=args.integrator, dtype=np_dtype, lock=Lock())
+    P = Array(np_ctype, SIM['N']*SIM['D'], lock=False)
+    R = Array(np_ctype, SIM['N'], lock=False)
 
     if not args.logging:
         import logging
